@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-print("✅ clean_events.py started")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
