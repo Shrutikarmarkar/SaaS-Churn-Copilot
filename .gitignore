@@ -1,2 +1,15 @@
+# system
+.DS_Store
+
+# python
+venv/
+__pycache__/
+*.pyc
+
+# raw data
 data/raw/*
 !data/raw/.gitkeep
+
+# processed large files
+data/processed/*
+data/mart/*
