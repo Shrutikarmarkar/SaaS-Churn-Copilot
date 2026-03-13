@@ -171,5 +171,12 @@ def main():
     print("Test P@5%   :", test_p5)
     print("Test R@5%   :", test_r5)
 
+    # inside your early-stop file temporarily
+
+    high_conf = (test_prob > 0.9)
+
+    print("Test samples with prob > 0.9:", high_conf.sum())
+    print("Actual churn rate among them:", y_test[high_conf].mean())
+
 if __name__ == "__main__":
     main()
