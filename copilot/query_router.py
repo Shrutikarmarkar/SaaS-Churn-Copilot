@@ -46,7 +46,7 @@ QUERY_MAP = {
     }
 }
 
-def route_question(question: str) -> str | None:
+def route_question(question: str):
     q = question.lower()
 
     best_match = None
@@ -67,21 +67,32 @@ def answer_question(question: str):
     match = route_question(question)
 
     if match is None:
-        print("Sorry, I couldn't match that question to a known analytics query yet.")
-        return
+        return {
+            "matched_query": None,
+            "sql": None,
+            "result": None,
+            "message": "Sorry, I couldn't match that question to a known analytics query yet."
+        }
 
-    print(f"Matched query: {match}")
     sql = QUERY_MAP[match]["sql"]
-    print("\nSQL:")
-    print(sql)
-
     df = run_query(sql)
-    print("\nResult:")
-    print(df)
+
+    return {
+        "matched_query": match,
+        "sql": sql,
+        "result": df,
+        "message": "Success"
+    }
 
 if __name__ == "__main__":
     while True:
         question = input("\nAsk a churn analytics question (or type 'exit'): ").strip()
         if question.lower() == "exit":
             break
-        answer_question(question)
+
+        output = answer_question(question)
+        print("\nMatched query:", output["matched_query"])
+        print("\nSQL:")
+        print(output["sql"])
+        print("\nResult:")
+        print(output["result"])
