@@ -267,6 +267,9 @@ CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
 
 def render_chart(df: pd.DataFrame, query_name: str):
     if df is None or df.empty or len(df) < 2: return
+    df = df.copy()
+    for col in df.select_dtypes(include="object").columns:
+        df[col] = df[col].fillna("Unknown")
     num  = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
     text = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
     if not num: return
@@ -386,6 +389,9 @@ with r_col:
                 f'<div class="result-card"><div class="result-title">{st.session_state.active_label}</div></div>',
                 unsafe_allow_html=True)
             df = out["result"]
+            if df is not None and not df.empty:
+                for col in df.select_dtypes(include="object").columns:
+                    df[col] = df[col].fillna("Unknown")
             qn = out.get("matched_query", "")
             if df is not None and not df.empty:
                 render_chart(df, qn)
