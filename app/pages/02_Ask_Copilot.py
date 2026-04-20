@@ -370,6 +370,12 @@ def render_chart(df: pd.DataFrame, query_name: str):
 
 # ── Result ────────────────────────────────────────────────────────────────────
 if st.session_state.output:
+    import streamlit.components.v1 as components
+    components.html("""
+    <script>
+      window.parent.document.querySelector('section.main').scrollTo({top: 99999, behavior: 'smooth'});
+    </script>
+    """, height=0)
     st.markdown('<div id="result-anchor"></div>', unsafe_allow_html=True)
     out = st.session_state.output
     if out["matched_query"] is None:
