@@ -274,9 +274,16 @@ with q_col:
             st.warning("Enter an account ID.")
 
 # ── SHAP insight card renderer ────────────────────────────────────────────────
-def _insight_sentence(fname: str, value: float, avg: float) -> str:
+def _insight_sentence(fname: str, value: float, avg) -> str:
     """Return a plain-English sentence explaining why this feature drives risk."""
-    v, a = float(value), float(avg) if avg else 0.001
+    v = float(value)
+    try:
+        a = float(avg)
+        if pd.isna(a): a = None
+    except (TypeError, ValueError):
+        a = None
+    if a is None:
+        return f"Value: {v:.3g} (population average unavailable)."
     pct = abs((v - a) / max(abs(a), 0.001) * 100)
 
     if fname == "days_since_last_activity":
@@ -356,7 +363,7 @@ def _render_shap_cards(df: pd.DataFrame):
         fname  = str(row.get("feature_name", ""))
         label  = str(row["driver"])
         value  = float(row["value"])
-        avg    = float(row.get("pop_avg", 0))
+        avg    = row.get("pop_avg", None)
         shap_v = float(row["shap_value"])
 
         is_risk  = shap_v > 0
@@ -516,12 +523,13 @@ with r_col:
             qn = out.get("matched_query", "")
             if df is not None and not df.empty:
                 render_chart(df, qn)
-                st.dataframe(df, use_container_width=True, hide_index=True,
-                             column_config={
-                                 "risk_percentile":       st.column_config.NumberColumn("Risk %ile",  format="%.1f"),
-                                 "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                                 "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                             })
+                if qn != "explain_account":
+                    st.dataframe(df, use_container_width=True, hide_index=True,
+                                 column_config={
+                                     "risk_percentile":       st.column_config.NumberColumn("Risk %ile",  format="%.1f"),
+                                     "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                                     "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                                 })
             else:
                 st.info("No results returned for this query.")
     else:
