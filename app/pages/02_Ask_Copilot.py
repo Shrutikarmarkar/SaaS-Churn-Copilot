@@ -274,7 +274,36 @@ with q_col:
             st.warning("Enter an account ID.")
 
 # ── SHAP insight card renderer ────────────────────────────────────────────────
-def _insight_sentence(fname: str, value: float, avg) -> str:
+def _infer_fname(fname: str, label: str) -> str:
+    """Fall back to inferring feature name from the human-readable label."""
+    if fname: return fname
+    l = label.lower()
+    if "seat"                          in l: return "seats"
+    if "tenure"                        in l: return "tenure_days"
+    if "days since" in l or "last activ" in l: return "days_since_last_activity"
+    if "active user" in l and "7"      in l: return "active_users_mean_7d"
+    if "active user" in l and "14"     in l: return "active_users_mean_14d"
+    if "active user"                   in l: return "active_users_mean_30d"
+    if "session" in l and "drop"       in l: return "sessions_drop_7v7"
+    if "session" in l and "trend"      in l: return "sessions_trend_7_minus_30"
+    if "session" in l and "7"          in l: return "sessions_mean_7d"
+    if "session" in l and "14"         in l: return "sessions_mean_14d"
+    if "session"                       in l: return "sessions_mean_30d"
+    if "event"   in l and "7"          in l: return "events_mean_7d"
+    if "event"   in l and "14"         in l: return "events_mean_14d"
+    if "event"                         in l: return "events_mean_30d"
+    if "revenue" in l and "7"          in l: return "revenue_sum_7d"
+    if "revenue" in l and "14"         in l: return "revenue_sum_14d"
+    if "revenue"                       in l: return "revenue_sum_30d"
+    return fname
+
+def _period_days(fname: str) -> int:
+    if "7d" in fname:  return 7
+    if "14d" in fname: return 14
+    return 30
+
+def _insight_sentence(fname: str, label: str, value: float, avg) -> str:
+    fname = _infer_fname(fname, label)
     v = float(value)
     try:
         a = float(avg)
@@ -288,95 +317,114 @@ def _insight_sentence(fname: str, value: float, avg) -> str:
     above   = has_avg and v > a
 
     if fname == "seats":
-        what = ("<b>What this means:</b> Seats = the number of licensed user accounts under this subscription — how many people from the customer's team can log in and use the product.")
+        what = "<b>What this means:</b> Seats = the number of licensed user accounts purchased under this subscription — i.e. how many people from this company can log in and use the product."
+        val  = f"<b>{int(v)} seat{'s' if v != 1 else ''}</b>"
         if has_avg:
-            body = (f"This account has <b>{int(v)} seat(s)</b>, vs. the average of <b>{a:.1f} seats</b> across all accounts ({pct:.0f}% {'below' if below else 'above'} average). "
-                    + ("With so few seats, only one or two people are using the product. If that person leaves or deprioritises it, the entire account churns." if below else
-                       "A larger seat count means more stakeholders depend on the product — if engagement drops, there is more revenue at risk."))
+            body = (f"This account has {val}, compared to an average of <b>{a:.1f} seats</b> across all accounts ({pct:.0f}% {'below' if below else 'above'} average). "
+                    + ("With only 1–2 people using the product, if that person leaves or deprioritises it, the whole account churns. Low seat counts strongly predict cancellation." if below else
+                       "More seats means more stakeholders are using the product — cancellation requires buy-in from a larger group, reducing churn risk."))
         else:
-            body = f"This account has <b>{int(v)} seat(s)</b>. A very small seat count suggests limited team adoption, which the model associates with higher cancellation risk."
+            body = f"This account has {val}. Very few seats means limited team adoption, which the model associates with higher cancellation risk."
         return f"{what}<br>{body}"
 
     if fname == "tenure_days":
-        years = v / 365
-        what  = "<b>What this means:</b> Account tenure = how long this company has been a paying customer (in days)."
+        yrs  = v / 365
+        what = "<b>What this means:</b> Account tenure = how long this company has been a paying customer, measured in days."
+        val  = f"<b>{int(v)} days (~{yrs:.1f} years)</b>"
         if has_avg:
-            body = (f"This account has been active for <b>{int(v)} days (~{years:.1f} years)</b>, vs. the average of <b>{a:.0f} days (~{a/365:.1f} years)</b>. "
-                    + ("Long-tenured accounts that show declining engagement are a strong churn signal — they may be staying out of habit rather than active value. A proactive check-in from a Customer Success rep is recommended." if above else
-                       "Relatively newer accounts that show low engagement early are at elevated churn risk before they reach full adoption."))
+            a_yrs = a / 365
+            body = (f"This account has been a customer for {val}, vs. an average of <b>{a:.0f} days (~{a_yrs:.1f} years)</b>. "
+                    + ("Long-tenured accounts that stop engaging are high churn risk — they may be staying out of habit rather than genuine value. A Customer Success check-in is recommended." if above else
+                       "Newer accounts that haven't fully adopted the product are at higher risk of early cancellation before they see full value."))
         else:
-            body = f"This account has been active for <b>{int(v)} days (~{years:.1f} years)</b>. Long-tenured accounts that become disengaged are a strong churn signal."
+            body = f"This account has been a customer for {val}. Long-tenured accounts that become disengaged are a strong churn signal."
         return f"{what}<br>{body}"
 
     if "active_users" in fname:
-        period = fname.split("_")[-1]
-        what   = f"<b>What this means:</b> Active users (last {period}) = the average number of unique team members who logged into the product each day over the past {period}. This measures how regularly the team actually uses the product day-to-day."
+        days = _period_days(fname)
+        total     = max(1, round(v * days))
+        avg_total = max(1, round(a * days)) if has_avg else None
+        what = (f"<b>What this means:</b> Active users (last {days} days) = how many unique team members from this company "
+                f"logged into the product at least once over the past {days} days. "
+                f"This tells us how many real people are actually using the product.")
+        val  = f"<b>~{total} user{'s' if total != 1 else ''} active in the past {days} days</b>"
         if has_avg:
-            freq   = f"roughly 1 login every {int(round(1/v))} days" if 0 < v < 1 else f"{v:.2f} users/day"
-            body   = (f"This account had <b>{freq}</b> of active usage, vs. the average of <b>{a:.2f} active users/day</b> across all accounts ({pct:.0f}% {'below' if below else 'above'} average). "
-                      + ("Near-zero daily logins means the product is sitting unused. This is one of the strongest early signals that an account is about to cancel." if below else
-                         "Above-average daily logins indicate the team is regularly engaged with the product."))
+            body = (f"This account had {val}, vs. an average of <b>~{avg_total} users</b> across all accounts ({pct:.0f}% {'below' if below else 'above'} average). "
+                    + (f"With only {total} user active, the product is essentially sitting unused. Near-zero user activity is one of the strongest predictors of cancellation." if total <= 1 else
+                       "Above-average user activity indicates the team is regularly engaged with the product."))
         else:
-            body = f"This account averaged <b>{v:.2f} active users/day</b>. Very low daily active users indicates the product is rarely being used."
+            body = f"This account had {val}. Very few active users means the product is rarely being used by the team."
         return f"{what}<br>{body}"
 
     if "sessions" in fname and "mean" in fname:
-        period = fname.split("_")[-1]
-        what   = f"<b>What this means:</b> Sessions (last {period}) = how many times per day users from this account opened or actively used the product, averaged over the past {period}. Each session is one intentional visit to the product."
+        days  = _period_days(fname)
+        total     = max(1, round(v * days))
+        avg_total = max(1, round(a * days)) if has_avg else None
+        what = (f"<b>What this means:</b> Sessions (last {days} days) = the total number of times any user from this company "
+                f"opened or logged into the product over the past {days} days. Each session = one intentional visit.")
+        val  = f"<b>~{total} login session{'s' if total != 1 else ''} in the past {days} days</b>"
         if has_avg:
-            body = (f"This account had <b>{v:.2f} sessions/day</b> over the past {period}, vs. the average of <b>{a:.2f} sessions/day</b> ({pct:.0f}% {'below' if below else 'above'} average). "
-                    + ("Infrequent sessions suggest the product is not part of the team's regular workflow, making cancellation significantly more likely." if below else
-                       "High session frequency indicates strong daily engagement with the product."))
+            body = (f"This account had {val}, vs. an average of <b>~{avg_total} sessions</b> ({pct:.0f}% {'below' if below else 'above'} average). "
+                    + ("Very few logins mean the product is not part of the team's daily routine — this strongly predicts cancellation." if below else
+                       "A high number of sessions indicates the team is regularly using the product."))
         else:
-            body = f"This account had <b>{v:.2f} sessions/day</b>. Low session frequency signals the product is not being regularly used."
+            body = f"This account had {val}. Low session count suggests the product is not being regularly used."
         return f"{what}<br>{body}"
 
     if "events" in fname and "mean" in fname:
-        period = fname.split("_")[-1]
-        what   = f"<b>What this means:</b> Events (last {period}) = the average number of in-product actions per day — things like clicking a button, running a report, or saving a record — recorded over the past {period}. More events = deeper product engagement."
+        days  = _period_days(fname)
+        total     = max(1, round(v * days))
+        avg_total = max(1, round(a * days)) if has_avg else None
+        what = (f"<b>What this means:</b> In-product events (last {days} days) = the total number of actions taken inside the product "
+                f"— such as clicking a button, submitting a form, or using a feature — over the past {days} days. "
+                f"More events = users are actively exploring and using the product.")
+        val  = f"<b>~{total} in-product action{'s' if total != 1 else ''} in the past {days} days</b>"
         if has_avg:
-            body = (f"This account triggered <b>{v:.2f} events/day</b>, vs. the average of <b>{a:.2f} events/day</b> ({pct:.0f}% {'below' if below else 'above'} average). "
-                    + ("Low event counts mean users are not exploring the product's features. Accounts that don't engage deeply rarely renew." if below else
-                       "High event counts indicate users are actively using features — a healthy engagement signal."))
+            body = (f"This account recorded {val}, vs. an average of <b>~{avg_total} actions</b> ({pct:.0f}% {'below' if below else 'above'} average). "
+                    + ("Low in-product activity means users are not engaging with the product's features. Accounts that don't interact deeply rarely renew." if below else
+                       "High in-product activity shows users are actively exploring features — a healthy retention signal."))
         else:
-            body = f"This account averaged <b>{v:.2f} in-product actions/day</b>. Low in-product activity signals limited engagement with the product's features."
+            body = f"This account recorded {val}. Low in-product activity signals limited engagement with the product's features."
         return f"{what}<br>{body}"
 
     if "revenue" in fname:
-        period = fname.split("_")[-1]
-        what   = f"<b>What this means:</b> Revenue (last {period}) = the total subscription revenue collected from this account over the past {period}. In SaaS, this reflects the contract size — larger accounts pay more."
+        days  = _period_days(fname)
+        what = (f"<b>What this means:</b> Revenue (last {days} days) = the total subscription payment collected from this "
+                f"account over the past {days} days. In SaaS, this reflects the account's contract size.")
+        val  = f"<b>${v:,.2f} paid in the past {days} days</b>"
         if has_avg:
-            body = (f"This account generated <b>${v:,.2f}</b> over the past {period}, vs. the average of <b>${a:,.2f}</b> per account ({pct:.0f}% {'below' if below else 'above'} average). "
-                    + ("Smaller accounts have fewer switching costs and churn at higher rates. The model flags low-revenue accounts as higher risk." if below else
-                       "Larger accounts have more at stake — if engagement drops on a high-value account, it represents significant revenue at risk."))
+            body = (f"This account contributed {val}, vs. an average of <b>${a:,.2f}</b> per account ({pct:.0f}% {'below' if below else 'above'} average). "
+                    + ("Smaller-paying accounts have fewer switching costs and churn at higher rates. The model flags low-revenue accounts as elevated risk." if below else
+                       "Larger accounts have more at stake — if engagement drops on a high-value account, the revenue risk is significant."))
         else:
-            body = f"This account generated <b>${v:,.2f}</b> over the past {period}."
+            body = f"This account contributed {val}."
         return f"{what}<br>{body}"
 
     if fname == "days_since_last_activity":
-        what = "<b>What this means:</b> Days since last activity = how many days ago any user from this account last logged in. This is the most direct measure of whether the account is still actively using the product."
+        what = "<b>What this means:</b> Days since last activity = how many days ago any user from this company last logged in. This is the most direct signal of whether the account is still actively using the product."
+        val  = f"<b>last login was {int(v)} days ago</b>"
         if has_avg:
-            body = (f"Last recorded login was <b>{int(v)} days ago</b>, vs. an average of <b>{a:.0f} days</b> across all accounts. "
-                    + (f"This is {pct:.0f}% longer than typical — an extended gap in logins is a direct warning sign that the account may be heading toward cancellation." if above else
-                       "This account is logging in more recently than most — a positive signal."))
+            body = (f"For this account, the {val}, vs. an average of <b>{a:.0f} days</b> across all accounts. "
+                    + (f"This is {pct:.0f}% longer than typical — an extended gap without any login is a direct warning sign the account may be heading toward cancellation." if above else
+                       "This account logged in more recently than average — a positive signal."))
         else:
-            body = f"Last activity was <b>{int(v)} days ago</b>. Long gaps since last login are a direct warning sign of disengagement."
+            body = f"For this account, the {val}. Extended periods without login are a direct warning sign of disengagement."
         return f"{what}<br>{body}"
 
     if fname == "sessions_drop_7v7":
-        what = "<b>What this means:</b> Week-over-week session drop = the percentage change in login sessions between the most recent 7 days and the 7 days before that. A positive value means usage fell."
-        body = (f"Sessions dropped <b>{v:.0%} week-over-week</b>. A sudden decline in logins is a strong early warning — it suggests the account's users are pulling back from the product right now." if v > 0.1 else
-                f"Week-over-week session change: <b>{v:+.2f}</b>" + (f" (avg {a:+.2f})." if has_avg else "."))
+        what = "<b>What this means:</b> Week-over-week session drop = the change in login count between the most recent 7 days and the 7 days before that. A drop means users are pulling back from the product right now."
+        body = (f"Sessions fell by <b>{v:.0%} this week vs. last week</b>. A sudden usage decline is a strong early warning — it means users are actively stepping away from the product." if v > 0.1 else
+                f"Session count was relatively stable week-over-week (change: {v:+.2f}).")
         return f"{what}<br>{body}"
 
     if fname == "sessions_trend_7_minus_30":
-        what = "<b>What this means:</b> Session trend = difference between the 7-day average and the 30-day average session count. A negative value means recent usage is lower than the longer-term baseline — a declining trend."
-        body = (f"The 7-day average is <b>{abs(v):.2f} sessions/day below</b> the 30-day baseline — usage is actively declining, not just low." if v < -0.05 else
-                f"Session trend: <b>{v:+.2f}</b>" + (f" vs. 30-day baseline (avg {a:+.2f})." if has_avg else "."))
+        what = "<b>What this means:</b> Session trend = whether recent usage (last 7 days) is higher or lower than the longer-term baseline (last 30 days). A negative number means usage is declining."
+        body = (f"Recent usage is <b>{abs(v):.2f} sessions/day below the 30-day baseline</b> — the account's activity is actively declining, not just low." if v < -0.05 else
+                f"Usage trend is relatively flat (7d vs 30d difference: {v:+.2f}).")
         return f"{what}<br>{body}"
 
-    # OHE / unknown feature
-    return (f"The model identified this account's profile as a risk factor. "
+    # Generic fallback
+    return (f"The model identified this account characteristic as a risk factor. "
             f"Value: <b>{v:.3g}</b>" + (f" vs. population avg <b>{a:.3g}</b>." if has_avg else "."))
 
 
@@ -417,7 +465,7 @@ def _render_shap_cards(df: pd.DataFrame):
         cls      = "" if is_risk else " green"
         badge_cls = "red" if is_risk else "grn"
         badge_txt = "↑ Increases risk" if is_risk else "↓ Reduces risk"
-        sentence  = _insight_sentence(fname, value, avg)
+        sentence  = _insight_sentence(fname, label, value, avg)
 
         st.markdown(f"""
         <div class="shap-card{cls}">
