@@ -310,7 +310,7 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
-             margin=dict(l=20,r=20,t=50,b=30))
+             margin=dict(l=20,r=50,t=50,b=30))
 GRID  = "#E2E8F0"
 PALET = ["#2563EB"] * 10
 
@@ -326,6 +326,7 @@ def render_chart(df: pd.DataFrame, query_name: str):
             mode="lines+markers+text",
             text=df[num[0]], textposition="top center",
             textfont=dict(size=11, color="#0F172A"),
+            cliponaxis=False,
             line=dict(color="#2563EB", width=3),
             marker=dict(size=10, color="#2563EB", line=dict(color="white", width=2)),
             fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",

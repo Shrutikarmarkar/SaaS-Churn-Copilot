@@ -287,7 +287,7 @@ CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              margin=dict(l=10,r=10,t=20,b=10))
 CHART_TALL = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
                   font=dict(family="DM Sans", color="#0F172A"),
-                  margin=dict(l=10,r=10,t=45,b=10))
+                  margin=dict(l=10,r=45,t=45,b=10))
 GRID  = "#E2E8F0"
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
@@ -372,6 +372,7 @@ if D.get("ok"):
                 mode="lines+markers+text",
                 text=tdf["high_risk"], textposition="top center",
                 textfont=dict(size=11, color="#0F172A"),
+                cliponaxis=False,
                 line=dict(color="#2563EB", width=3),
                 marker=dict(size=10, color="#2563EB",
                             line=dict(color="white", width=2)),
