@@ -11,7 +11,7 @@ if COPILOT_DIR not in sys.path:
 from query_router import answer_direct, answer_question
 
 st.set_page_config(page_title="Ask Copilot", page_icon="🤖",
-                   layout="wide", initial_sidebar_state="expanded")
+                   layout="wide", initial_sidebar_state="collapsed")
 
 # ── Styles ────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -20,50 +20,17 @@ st.markdown("""
 
 html, body, [class*="css"] { font-family:'DM Sans',sans-serif; background:#FFFFFF; }
 #MainMenu, footer, header { visibility:hidden; }
-.main .block-container { padding:1.8rem 2.4rem 3rem; max-width:1100px; }
+.main .block-container { padding:1.4rem 2rem 3rem; max-width:1300px; }
 
 @keyframes fadeUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 @keyframes orbs    { 0%{transform:scale(1) rotate(0deg)} 100%{transform:scale(1.1) rotate(4deg)} }
 @keyframes gradText{ 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-@keyframes ripple  { 0%{transform:scale(0);opacity:0.55} 100%{transform:scale(3);opacity:0} }
-
-/* ── Sidebar ── */
-[data-testid="stSidebar"] {
-    background: #0F172A;
-    padding: 1.2rem 0.8rem;
-}
-[data-testid="stSidebar"] * { color: #F8FAFC !important; }
-[data-testid="stSidebar"] .stExpander {
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 12px !important;
-    margin-bottom: 0.5rem;
-    background: rgba(255,255,255,0.04) !important;
-}
-[data-testid="stSidebar"] button {
-    background: rgba(255,255,255,0.06) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    color: #CBD5E1 !important;
-    border-radius: 8px !important;
-    font-size: 0.82rem !important;
-    text-align: left !important;
-    transition: all 0.2s ease !important;
-}
-[data-testid="stSidebar"] button:hover {
-    background: rgba(37,99,235,0.25) !important;
-    border-color: rgba(37,99,235,0.5) !important;
-    color: #FFFFFF !important;
-}
-.sidebar-title {
-    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
-    text-transform: uppercase; color: rgba(248,250,252,0.4);
-    padding: 0.5rem 0.4rem 1rem;
-}
 
 /* ── Hero ── */
 .hero {
     background: linear-gradient(135deg, #0A0F1E 0%, #0F172A 55%, #1A0A2E 100%);
-    border-radius: 20px; padding: 2.2rem 2.8rem;
-    color: #F8FAFC; margin-bottom: 1.6rem;
+    border-radius: 20px; padding: 1.8rem 2.4rem;
+    color: #F8FAFC; margin-bottom: 1.2rem;
     position: relative; overflow: hidden;
     animation: fadeUp 0.5s ease;
 }
@@ -83,20 +50,36 @@ html, body, [class*="css"] { font-family:'DM Sans',sans-serif; background:#FFFFF
 }
 .hero-content { position:relative; z-index:1; }
 .hero-eyebrow { font-size:0.7rem; font-weight:700; letter-spacing:0.16em;
-                text-transform:uppercase; color:rgba(248,250,252,0.45); margin-bottom:0.6rem; }
+                text-transform:uppercase; color:rgba(248,250,252,0.45); margin-bottom:0.4rem; }
 .hero h1 {
-    font-family:'DM Serif Display',serif; font-size:2.4rem; font-weight:400; margin:0 0 0.5rem;
+    font-family:'DM Serif Display',serif; font-size:2.2rem; font-weight:400; margin:0 0 0.4rem;
     background:linear-gradient(120deg,#FFFFFF 0%,#C0624A 50%,#A78BFA 100%);
     background-size:200% auto;
     -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
     animation: gradText 6s linear infinite;
 }
-.hero p { font-size:0.9rem; color:rgba(248,250,252,0.6); margin:0; line-height:1.6; }
+.hero p { font-size:0.88rem; color:rgba(248,250,252,0.6); margin:0; line-height:1.6; }
+
+/* ── Questions panel ── */
+.q-panel {
+    background: #0F172A;
+    border-radius: 16px;
+    padding: 1rem 0.8rem;
+    height: 100%;
+}
+.q-panel-title {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: rgba(248,250,252,0.4);
+    padding: 0 0.4rem 0.8rem;
+}
+[data-testid="stExpander"] summary {
+    color: #F8FAFC !important;
+}
 
 /* ── Result card ── */
 .result-card {
     background:#F8FAFC; border-radius:16px;
-    padding:1rem 1.4rem; margin-bottom:1rem;
+    padding:0.8rem 1.2rem; margin-bottom:0.8rem;
     border-left:4px solid #2563EB;
     animation: fadeUp 0.3s ease;
 }
@@ -134,6 +117,11 @@ div[data-testid="stButton"] > button[kind="primary"]:hover {
     background:linear-gradient(135deg,#A8533E 0%,#C0624A 100%);
     transform:translateY(-1px);
 }
+
+/* ── Question buttons in dark panel ── */
+section[data-testid="stVerticalBlock"] div[data-testid="stButton"] > button {
+    text-align: left !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -149,7 +137,7 @@ def run_text(q):
     st.session_state.active_label = q
     st.session_state.output       = answer_question(q)
 
-# ── Sidebar: question buttons ─────────────────────────────────────────────────
+# ── Questions data ─────────────────────────────────────────────────────────────
 CATEGORIES = {
     "📊 Risk Overview": [
         ("Top 10 high-risk accounts",        "top_risk_accounts",         {"limit":10}),
@@ -200,20 +188,13 @@ CATEGORIES = {
     ],
 }
 
-with st.sidebar:
-    st.markdown('<div class="sidebar-title">Questions</div>', unsafe_allow_html=True)
-    for cat, qs in CATEGORIES.items():
-        with st.expander(cat, expanded=False):
-            for i, (lbl, qn, params) in enumerate(qs):
-                if st.button(lbl, key=f"sb_{cat}_{i}", use_container_width=True):
-                    run_direct(lbl, qn, params)
-
-# ── Main area ─────────────────────────────────────────────────────────────────
-cb, _ = st.columns([1,9])
+# ── Top nav ───────────────────────────────────────────────────────────────────
+cb, _ = st.columns([1, 9])
 with cb:
     if st.button("← Dashboard"):
         st.switch_page("Home.py")
 
+# ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero">
   <div class="hero-orbs"></div>
@@ -221,13 +202,13 @@ st.markdown("""
   <div class="hero-content">
     <div class="hero-eyebrow">Churn Intelligence</div>
     <h1>Ask Copilot</h1>
-    <p>Pick a question from the sidebar or type your own below.</p>
+    <p>Pick a question from the panel or type your own below.</p>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ── Custom input ──────────────────────────────────────────────────────────────
-ci, cb2 = st.columns([8,1])
+ci, cb2 = st.columns([8, 1])
 with ci:
     custom = st.text_input("", placeholder="e.g. high risk Enterprise accounts in EU with Monthly contracts",
                            label_visibility="collapsed")
@@ -238,14 +219,26 @@ with cb2:
         else: st.warning("Please enter a question.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-st.divider()
+st.markdown("<div style='margin-bottom:0.8rem'></div>", unsafe_allow_html=True)
+
+# ── Two-column layout: questions left, result right ───────────────────────────
+q_col, r_col = st.columns([3, 7], gap="large")
+
+# ── Left: question panel ──────────────────────────────────────────────────────
+with q_col:
+    st.markdown('<div class="q-panel">', unsafe_allow_html=True)
+    st.markdown('<div class="q-panel-title">Questions</div>', unsafe_allow_html=True)
+    for cat, qs in CATEGORIES.items():
+        with st.expander(cat, expanded=False):
+            for i, (lbl, qn, params) in enumerate(qs):
+                if st.button(lbl, key=f"q_{cat}_{i}", use_container_width=True):
+                    run_direct(lbl, qn, params)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
-             margin=dict(l=20,r=50,t=50,b=30))
-GRID  = "#E2E8F0"
-PALET = ["#2563EB"] * 10
+             margin=dict(l=20, r=50, t=50, b=30))
 
 def render_chart(df: pd.DataFrame, query_name: str):
     if df is None or df.empty or len(df) < 2: return
@@ -266,27 +259,27 @@ def render_chart(df: pd.DataFrame, query_name: str):
             hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
         ))
         ymax = df[num[0]].max() * 1.25
-        fig.update_layout(height=380, showlegend=False,
-                          xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                          yaxis=dict(showgrid=False, tickfont=dict(size=12), range=[0, ymax]),
+        fig.update_layout(height=360, showlegend=False,
+                          xaxis=dict(showgrid=False, tickfont=dict(size=11)),
+                          yaxis=dict(showgrid=False, tickfont=dict(size=11), range=[0, ymax]),
                           **CHART)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
         return
 
-    if query_name in ("risk_bucket_distribution","risk_band_distribution") and text:
+    if query_name in ("risk_bucket_distribution", "risk_band_distribution") and text:
         cmap = {"High":"#1E3A8A","Medium":"#2563EB","Low":"#93C5FD",
                 "Top 1%":"#1E3A8A","Top 5%":"#1D4ED8","Top 10%":"#2563EB",
                 "Top 25%":"#60A5FA","Rest":"#BFDBFE"}
-        colors = [cmap.get(l,"#94A3B8") for l in df[text[0]]]
+        colors = [cmap.get(l, "#94A3B8") for l in df[text[0]]]
         fig = go.Figure(go.Pie(
             labels=df[text[0]], values=df[num[0]], hole=0.58,
             marker=dict(colors=colors, line=dict(color="#FFFFFF", width=3)),
             textinfo="label+percent", textfont=dict(size=11),
             hovertemplate="<b>%{label}</b><br>%{value} accounts<extra></extra>"
         ))
-        fig.update_layout(height=380, showlegend=False, paper_bgcolor="#FFFFFF",
-                          margin=dict(l=20,r=20,t=30,b=20))
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+        fig.update_layout(height=360, showlegend=False, paper_bgcolor="#FFFFFF",
+                          margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
         return
 
     if text and num:
@@ -294,39 +287,41 @@ def render_chart(df: pd.DataFrame, query_name: str):
             x=df[text[0]], y=df[num[0]],
             text=df[num[0]], textposition="outside",
             textfont=dict(size=12, color="#0F172A"),
-            marker=dict(color=PALET[:len(df)], line=dict(color="#FFFFFF", width=1)),
+            marker=dict(color=["#2563EB"] * len(df), line=dict(color="#FFFFFF", width=1)),
             hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
         ))
-        fig.update_layout(height=380, bargap=0.38, showlegend=False,
-                          xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                          yaxis=dict(showgrid=False, tickfont=dict(size=12),
-                                     range=[0, df[num[0]].max()*1.3]),
+        fig.update_layout(height=360, bargap=0.38, showlegend=False,
+                          xaxis=dict(showgrid=False, tickfont=dict(size=11)),
+                          yaxis=dict(showgrid=False, tickfont=dict(size=11),
+                                     range=[0, df[num[0]].max() * 1.3]),
                           **CHART)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-# ── Result ────────────────────────────────────────────────────────────────────
-if st.session_state.output:
-    out = st.session_state.output
-    if out["matched_query"] is None:
-        st.error(out["message"])
-    else:
-        st.markdown(f'<div class="result-card"><div class="result-title">{st.session_state.active_label}</div></div>',
-                    unsafe_allow_html=True)
-        df  = out["result"]
-        qn  = out.get("matched_query","")
-        if df is not None and not df.empty:
-            render_chart(df, qn)
-            st.dataframe(df, use_container_width=True, hide_index=True,
-                         column_config={
-                             "risk_percentile":       st.column_config.NumberColumn("Risk %ile", format="%.1f"),
-                             "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                             "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                         })
+# ── Right: result panel ───────────────────────────────────────────────────────
+with r_col:
+    if st.session_state.output:
+        out = st.session_state.output
+        if out["matched_query"] is None:
+            st.error(out["message"])
         else:
-            st.info("No results returned for this query.")
-else:
-    st.markdown("""
-    <div class="placeholder">
-        👈 &nbsp; Select a question from the sidebar to see the chart here
-    </div>
-    """, unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="result-card"><div class="result-title">{st.session_state.active_label}</div></div>',
+                unsafe_allow_html=True)
+            df = out["result"]
+            qn = out.get("matched_query", "")
+            if df is not None and not df.empty:
+                render_chart(df, qn)
+                st.dataframe(df, use_container_width=True, hide_index=True,
+                             column_config={
+                                 "risk_percentile":       st.column_config.NumberColumn("Risk %ile",  format="%.1f"),
+                                 "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                                 "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                             })
+            else:
+                st.info("No results returned for this query.")
+    else:
+        st.markdown("""
+        <div class="placeholder">
+            👈 &nbsp; Select a question from the panel to see the chart here
+        </div>
+        """, unsafe_allow_html=True)
