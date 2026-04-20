@@ -62,54 +62,51 @@ html, body, [class*="css"] { font-family:'DM Sans',sans-serif; background:#FFFFF
 
 /* ── Questions panel ── */
 .q-panel {
-    background: #0F172A;
+    background: #F1F5F9;
     border-radius: 16px;
     padding: 1rem 0.8rem;
-    height: 100%;
+    border: 1px solid #E2E8F0;
 }
 .q-panel-title {
     font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: rgba(248,250,252,0.4);
+    text-transform: uppercase; color: #64748B;
     padding: 0 0.4rem 0.8rem;
 }
 
-/* Force expander header text to be white on the dark panel */
-[data-testid="stExpander"] {
-    background: rgba(255,255,255,0.06) !important;
-    border: 1px solid rgba(255,255,255,0.12) !important;
-    border-radius: 10px !important;
-    margin-bottom: 0.4rem !important;
-}
-[data-testid="stExpander"] summary,
-[data-testid="stExpander"] summary p,
-[data-testid="stExpander"] summary span,
-[data-testid="stExpander"] details summary div p {
-    color: #F1F5F9 !important;
+/* Expander header */
+details > summary { list-style: none; }
+details > summary p,
+details > summary span,
+details summary div,
+details summary div p,
+details summary div span {
+    color: #0F172A !important;
     font-weight: 600 !important;
-    font-size: 0.88rem !important;
+    font-size: 0.9rem !important;
 }
-[data-testid="stExpander"] svg {
-    fill: #F1F5F9 !important;
-    stroke: #F1F5F9 !important;
-}
+details > summary svg { color: #0F172A !important; }
 
 /* Buttons inside expanders */
-[data-testid="stExpander"] button {
-    background: rgba(255,255,255,0.05) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    color: #CBD5E1 !important;
+details [data-testid="stButton"] button,
+details [data-testid="stBaseButton-secondary"] {
+    background: #FFFFFF !important;
+    border: 1px solid #CBD5E1 !important;
     border-radius: 8px !important;
     font-size: 0.82rem !important;
     text-align: left !important;
     transition: all 0.2s ease !important;
 }
-[data-testid="stExpander"] button:hover {
-    background: rgba(37,99,235,0.25) !important;
-    border-color: rgba(37,99,235,0.5) !important;
-    color: #FFFFFF !important;
+details [data-testid="stButton"] button p,
+details [data-testid="stBaseButton-secondary"] p {
+    color: #334155 !important;
+    font-weight: 500 !important;
 }
-[data-testid="stExpander"] button p {
-    color: inherit !important;
+details [data-testid="stButton"] button:hover {
+    background: #EFF6FF !important;
+    border-color: #2563EB !important;
+}
+details [data-testid="stButton"] button:hover p {
+    color: #1D4ED8 !important;
 }
 
 /* ── Result card ── */
@@ -264,6 +261,7 @@ q_col, r_col = st.columns([3, 7], gap="large")
 with q_col:
     st.markdown('<div class="q-panel">', unsafe_allow_html=True)
     st.markdown('<div class="q-panel-title">Questions</div>', unsafe_allow_html=True)
+    st.markdown("<div style='height:0.2rem'></div>", unsafe_allow_html=True)
     for cat, qs in CATEGORIES.items():
         with st.expander(cat, expanded=False):
             for i, (lbl, qn, params) in enumerate(qs):
