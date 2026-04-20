@@ -1,13 +1,16 @@
 from sqlalchemy import create_engine, text
 import pandas as pd
+import os
 
-DB_USER = "churn"
-DB_PASSWORD = "churn"
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "churn_db"
+try:
+    import streamlit as st
+    DATABASE_URL = st.secrets.get("DATABASE_URL") or os.environ.get("DATABASE_URL")
+except Exception:
+    DATABASE_URL = os.environ.get("DATABASE_URL")
 
-DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set. Add it to .streamlit/secrets.toml or as an environment variable.")
+
 engine = create_engine(DATABASE_URL)
 
 def run_query(sql: str) -> pd.DataFrame:
@@ -16,9 +19,9 @@ def run_query(sql: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     sql = """
-    SELECT account_id, snapshot_date, churn_risk_score, risk_percentile, risk_band, risk_bucket
+    SELECT account_id, snapshot_date, churn_risk_calibrated, risk_percentile, risk_band, risk_bucket
     FROM churn_scores_latest_ranked
-    ORDER BY churn_risk_score DESC
+    ORDER BY risk_percentile DESC
     LIMIT 10;
     """
     df = run_query(sql)

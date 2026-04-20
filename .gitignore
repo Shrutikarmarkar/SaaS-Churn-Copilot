@@ -1,6 +1,9 @@
 # system
 .DS_Store
 
+# secrets — never commit
+.streamlit/secrets.toml
+
 # python
 venv/
 __pycache__/

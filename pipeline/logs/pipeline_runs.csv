@@ -1,0 +1,7 @@
+run_id,run_timestamp,step_name,status,python_executable
+20260419_131313,2026-04-19 13:13:13,Clean raw events,SUCCESS,/Users/shrutimac/Documents/Final Project Saas Churn Copilot/SaaS-Churn-Copilot/venv/bin/python
+20260419_131313,2026-04-19 13:13:13,Build B2B marts,SUCCESS,/Users/shrutimac/Documents/Final Project Saas Churn Copilot/SaaS-Churn-Copilot/venv/bin/python
+20260419_131313,2026-04-19 13:13:13,Build 30-day feature table,SUCCESS,/Users/shrutimac/Documents/Final Project Saas Churn Copilot/SaaS-Churn-Copilot/venv/bin/python
+20260419_131313,2026-04-19 13:13:13,Generate production churn scores,SUCCESS,/Users/shrutimac/Documents/Final Project Saas Churn Copilot/SaaS-Churn-Copilot/venv/bin/python
+20260419_131313,2026-04-19 13:13:13,Build ranked churn scores,SUCCESS,/Users/shrutimac/Documents/Final Project Saas Churn Copilot/SaaS-Churn-Copilot/venv/bin/python
+20260419_131313,2026-04-19 13:13:13,Load marts into Postgres,SUCCESS,/Users/shrutimac/Documents/Final Project Saas Churn Copilot/SaaS-Churn-Copilot/venv/bin/python
