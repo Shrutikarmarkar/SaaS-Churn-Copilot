@@ -310,7 +310,7 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
-             margin=dict(l=10,r=10,t=20,b=10))
+             margin=dict(l=20,r=20,t=50,b=30))
 GRID  = "#E2E8F0"
 PALET = ["#2563EB"] * 10
 
@@ -331,9 +331,9 @@ def render_chart(df: pd.DataFrame, query_name: str):
             fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",
             hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
         ))
-        fig.update_layout(height=300, showlegend=False,
-                          xaxis=dict(showgrid=False, tickfont=dict(size=11)),
-                          yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=11)),
+        fig.update_layout(height=380, showlegend=False,
+                          xaxis=dict(showgrid=False, tickfont=dict(size=12)),
+                          yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
                           **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
         return
@@ -349,8 +349,8 @@ def render_chart(df: pd.DataFrame, query_name: str):
             textinfo="label+percent", textfont=dict(size=11),
             hovertemplate="<b>%{label}</b><br>%{value} accounts<extra></extra>"
         ))
-        fig.update_layout(height=300, showlegend=False, paper_bgcolor="#FFFFFF",
-                          margin=dict(l=10,r=10,t=10,b=10))
+        fig.update_layout(height=380, showlegend=False, paper_bgcolor="#FFFFFF",
+                          margin=dict(l=20,r=20,t=30,b=20))
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
         return
 
@@ -362,14 +362,15 @@ def render_chart(df: pd.DataFrame, query_name: str):
             marker=dict(color=PALET[:len(df)], line=dict(color="#FFFFFF", width=1)),
             hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
         ))
-        fig.update_layout(height=300, bargap=0.38, showlegend=False,
+        fig.update_layout(height=380, bargap=0.38, showlegend=False,
                           xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                          yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=11)),
+                          yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
                           **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
 
 # ── Result ────────────────────────────────────────────────────────────────────
 if st.session_state.output:
+    st.markdown('<div id="result-anchor"></div>', unsafe_allow_html=True)
     out = st.session_state.output
     if out["matched_query"] is None:
         st.error(out["message"])
@@ -445,10 +446,18 @@ st.markdown("""
 
   }
 
+    /* Auto-scroll to result anchor */
+    var anchor = document.getElementById('result-anchor');
+    if (anchor) {
+      anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 120); });
+    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 300); });
   } else {
-    setTimeout(init, 120);
+    setTimeout(init, 300);
   }
 })();
 </script>

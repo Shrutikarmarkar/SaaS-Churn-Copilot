@@ -137,16 +137,16 @@ html, body, [class*="css"] {
 .mcard:hover.mcard-sage  { box-shadow: 0 20px 40px rgba(22,163,74,0.12); }
 
 .mcard-icon  { font-size: 1.6rem; margin-bottom: 0.6rem; display: block; }
-.mcard-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+.mcard-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
                letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 0.4rem; }
 .mcard-value {
-    font-size: 2.6rem; font-weight: 800; color: #0F172A;
+    font-size: 3.1rem; font-weight: 800; color: #0F172A;
     line-height: 1; font-variant-numeric: tabular-nums;
     display: block;
 }
-.mcard-delta-up   { font-size: 0.8rem; color: #DC2626; margin-top: 0.5rem; font-weight: 600; }
-.mcard-delta-down { font-size: 0.8rem; color: #16A34A; margin-top: 0.5rem; font-weight: 600; }
-.mcard-delta-flat { font-size: 0.8rem; color: #94A3B8;  margin-top: 0.5rem; }
+.mcard-delta-up   { font-size: 0.92rem; color: #DC2626; margin-top: 0.5rem; font-weight: 600; }
+.mcard-delta-down { font-size: 0.92rem; color: #16A34A; margin-top: 0.5rem; font-weight: 600; }
+.mcard-delta-flat { font-size: 0.92rem; color: #94A3B8;  margin-top: 0.5rem; }
 
 /* ── Chart Cards ── */
 .cccard {
@@ -162,8 +162,8 @@ html, body, [class*="css"] {
     border-color: #CBD5E1;
     transform: translateY(-2px);
 }
-.cccard-title    { font-size: 0.95rem; font-weight: 700; color: #0F172A; margin-bottom: 0.15rem; }
-.cccard-subtitle { font-size: 0.76rem; color: #94A3B8; margin-bottom: 0.8rem; }
+.cccard-title    { font-size: 1.08rem; font-weight: 700; color: #0F172A; margin-bottom: 0.15rem; }
+.cccard-subtitle { font-size: 0.86rem; color: #94A3B8; margin-bottom: 0.8rem; }
 
 /* ── Section Headers ── */
 .sec-hdr {
@@ -329,25 +329,21 @@ if D.get("ok") and not D["wow"].empty:
     st.markdown(f"""
     <div class="cards-row">
       <div class="mcard mcard-rust" style="animation:fadeUp .5s ease .05s both">
-        <span class="mcard-icon">🔴</span>
         <div class="mcard-label">High-Risk Accounts</div>
         <div class="mcard-value" data-count="{high_now}">{high_now}</div>
         <div class="{dc}">{di} {abs(change)} vs last week</div>
       </div>
       <div class="mcard mcard-sand" style="animation:fadeUp .5s ease .15s both">
-        <span class="mcard-icon">📊</span>
         <div class="mcard-label">Total Accounts</div>
         <div class="mcard-value" data-count="{total}">{total}</div>
         <div class="mcard-delta-flat">{pct}% flagged high-risk</div>
       </div>
       <div class="mcard mcard-mauve" style="animation:fadeUp .5s ease .25s both">
-        <span class="mcard-icon">⚠️</span>
         <div class="mcard-label">Newly At-Risk</div>
         <div class="mcard-value" data-count="{new_n}">{new_n}</div>
         <div class="mcard-delta-{'up' if new_n>0 else 'flat'}">{"▲ needs attention" if new_n>0 else "● no new accounts"}</div>
       </div>
       <div class="mcard mcard-sage" style="animation:fadeUp .5s ease .35s both">
-        <span class="mcard-icon">📅</span>
         <div class="mcard-label">Last Week</div>
         <div class="mcard-value" data-count="{high_prev}">{high_prev}</div>
         <div class="mcard-delta-flat">high-risk accounts</div>
@@ -377,10 +373,11 @@ if D.get("ok"):
                 fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",
                 hovertemplate="<b>%{x}</b><br>%{y} high-risk<extra></extra>"
             ))
-            fig.update_layout(height=270, showlegend=False,
-                              xaxis=dict(showgrid=False, tickfont=dict(size=11)),
-                              yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=11)),
-                              **CHART)
+            fig.update_layout(height=320, showlegend=False,
+                              xaxis=dict(showgrid=False, tickfont=dict(size=12)),
+                              yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
+                              margin=dict(l=10,r=10,t=40,b=10),
+                              **{k:v for k,v in CHART.items() if k != "margin"})
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -401,7 +398,7 @@ if D.get("ok"):
                 hovertemplate="<b>%{label}</b><br>%{value} accounts<extra></extra>"
             ))
             fig2.update_layout(
-                height=270, showlegend=False,
+                height=320, showlegend=False,
                 paper_bgcolor="#FFFFFF",
                 margin=dict(l=10,r=10,t=10,b=10),
                 annotations=[dict(
@@ -431,10 +428,11 @@ if D.get("ok"):
                             line=dict(color="#FFFFFF", width=1)),
                 hovertemplate="<b>%{x}</b><br>%{y} high-risk<extra></extra>"
             ))
-            fig3.update_layout(height=240, bargap=0.4, showlegend=False,
+            fig3.update_layout(height=300, bargap=0.4, showlegend=False,
                                xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                               yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=11)),
-                               **CHART)
+                               yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
+                               margin=dict(l=10,r=10,t=40,b=10),
+                               **{k:v for k,v in CHART.items() if k != "margin"})
             st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -453,10 +451,11 @@ if D.get("ok"):
                             line=dict(color="#FFFFFF", width=1)),
                 hovertemplate="<b>%{x}</b><br>Avg percentile: %{y}<extra></extra>"
             ))
-            fig4.update_layout(height=240, bargap=0.4, showlegend=False,
+            fig4.update_layout(height=300, bargap=0.4, showlegend=False,
                                xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                               yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=11), range=[0,100]),
-                               **CHART)
+                               yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12), range=[0,110]),
+                               margin=dict(l=10,r=10,t=40,b=10),
+                               **{k:v for k,v in CHART.items() if k != "margin"})
             st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
