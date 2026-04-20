@@ -5,13 +5,18 @@ from sqlalchemy import create_engine
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_MART_DIR = os.path.join(BASE_DIR, "data", "mart")
 
-DB_USER = "churn"
-DB_PASSWORD = "churn"
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "churn_db"
-
-DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    # fall back to .streamlit/secrets.toml
+    secrets_path = os.path.join(BASE_DIR, ".streamlit", "secrets.toml")
+    if os.path.exists(secrets_path):
+        with open(secrets_path) as f:
+            for line in f:
+                if line.startswith("DATABASE_URL"):
+                    DATABASE_URL = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+if not DATABASE_URL:
+    raise RuntimeError("Set DATABASE_URL in .streamlit/secrets.toml or as an env var.")
 
 FILES_TO_TABLES = {
     "dim_account.csv": "dim_account",
@@ -19,6 +24,7 @@ FILES_TO_TABLES = {
     "fact_usage_daily_account.csv": "fact_usage_daily_account",
     "fact_churn_account.csv": "fact_churn_account",
     "churn_scores_latest_ranked.csv": "churn_scores_latest_ranked",
+    "churn_scores_history.csv": "churn_scores_history",
 }
 
 def main():
