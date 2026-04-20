@@ -2,19 +2,25 @@ from sqlalchemy import create_engine, text
 import pandas as pd
 import os
 
-try:
-    import streamlit as st
-    DATABASE_URL = st.secrets.get("DATABASE_URL") or os.environ.get("DATABASE_URL")
-except Exception:
-    DATABASE_URL = os.environ.get("DATABASE_URL")
+_engine = None
 
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set. Add it to .streamlit/secrets.toml or as an environment variable.")
-
-engine = create_engine(DATABASE_URL)
+def _get_engine():
+    global _engine
+    if _engine is None:
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            try:
+                import streamlit as st
+                url = st.secrets.get("DATABASE_URL")
+            except Exception:
+                pass
+        if not url:
+            raise RuntimeError("DATABASE_URL is not set. Add it to .streamlit/secrets.toml or as an environment variable.")
+        _engine = create_engine(url)
+    return _engine
 
 def run_query(sql: str) -> pd.DataFrame:
-    with engine.connect() as conn:
+    with _get_engine().connect() as conn:
         return pd.read_sql(text(sql), conn)
 
 if __name__ == "__main__":
