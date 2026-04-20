@@ -215,6 +215,8 @@ CATEGORIES = {
     ],
 }
 
+EXPLAIN_KEY = "explain_input"
+
 # ── Top nav ───────────────────────────────────────────────────────────────────
 cb, _ = st.columns([1, 9])
 with cb:
@@ -260,6 +262,17 @@ with q_col:
                 if st.button(lbl, key=f"q_{cat}_{i}", use_container_width=True):
                     run_direct(lbl, qn, params)
 
+    st.markdown("---")
+    st.markdown('<div class="q-panel-title">🔍 Explain Account</div>', unsafe_allow_html=True)
+    acc_input = st.text_input("Account ID", placeholder="e.g. ACC_0086",
+                              label_visibility="collapsed", key=EXPLAIN_KEY)
+    if st.button("Explain →", use_container_width=True, key="explain_btn"):
+        if acc_input.strip():
+            run_direct(f"Why is {acc_input.strip()} high risk?",
+                       "explain_account", {"account_id": acc_input.strip()})
+        else:
+            st.warning("Enter an account ID.")
+
 # ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
@@ -273,6 +286,30 @@ def render_chart(df: pd.DataFrame, query_name: str):
     num  = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
     text = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
     if not num: return
+
+    # SHAP explanation: driver / shap_value / value / driver_rank
+    if "driver" in df.columns and "shap_value" in df.columns:
+        df_s = df.sort_values("shap_value")
+        colors = ["#EF4444" if v > 0 else "#22C55E" for v in df_s["shap_value"]]
+        fig = go.Figure(go.Bar(
+            x=df_s["shap_value"],
+            y=df_s["driver"],
+            orientation="h",
+            marker_color=colors,
+            text=[f"{v:+.4f}" for v in df_s["shap_value"]],
+            textposition="outside",
+            textfont=dict(size=11, color="#0F172A"),
+            hovertemplate="<b>%{y}</b><br>SHAP: %{x:+.4f}<extra></extra>",
+        ))
+        fig.update_layout(
+            height=340, showlegend=False,
+            xaxis=dict(showgrid=False, tickfont=dict(size=11),
+                       title="SHAP value (red = increases risk, green = reduces risk)",
+                       zeroline=True, zerolinecolor="#CBD5E1", zerolinewidth=2),
+            yaxis=dict(showgrid=False, tickfont=dict(size=11)),
+            **CHART)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        return
 
     # Account-list queries: horizontal bar of risk percentile by account
     if "account_id" in df.columns and "risk_percentile" in df.columns:

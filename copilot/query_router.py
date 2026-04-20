@@ -492,6 +492,19 @@ QUERY_MAP = {
         """
     },
 
+    # ── Account Explainability ───────────────────────────────────────────────
+
+    "explain_account": {
+        "keywords": ["explain", "why is", "why high risk", "what makes", "risk drivers for",
+                     "drivers for", "why is this account", "explain account"],
+        "sql_template": """
+            SELECT feature_label AS driver, shap_value, feature_value AS value, driver_rank
+            FROM account_shap_drivers
+            WHERE account_id = '{account_id}'
+            ORDER BY driver_rank;
+        """
+    },
+
     "recovered_accounts": {
         "keywords": ["recovered accounts", "accounts no longer high risk",
                      "accounts that left high risk", "improved accounts",
@@ -584,8 +597,12 @@ def answer_direct(query_name: str, params: dict = {}) -> dict:
     config = QUERY_MAP[query_name]
 
     if "sql_template" in config:
-        limit = params.get("limit", config.get("default_limit", 10))
-        sql = config["sql_template"].format(limit=limit)
+        fmt = {"limit": params.get("limit", config.get("default_limit", 10))}
+        # Pass through any extra string params (e.g. account_id) — strip to prevent injection
+        for k, v in params.items():
+            if k != "limit":
+                fmt[k] = str(v).strip().replace("'", "")
+        sql = config["sql_template"].format(**fmt)
     else:
         sql = config["sql"]
 

@@ -19,12 +19,13 @@ if not DATABASE_URL:
     raise RuntimeError("Set DATABASE_URL in .streamlit/secrets.toml or as an env var.")
 
 FILES_TO_TABLES = {
-    "dim_account.csv": "dim_account",
-    "dim_user.csv": "dim_user",
+    "dim_account.csv":              "dim_account",
+    "dim_user.csv":                 "dim_user",
     "fact_usage_daily_account.csv": "fact_usage_daily_account",
-    "fact_churn_account.csv": "fact_churn_account",
+    "fact_churn_account.csv":       "fact_churn_account",
     "churn_scores_latest_ranked.csv": "churn_scores_latest_ranked",
-    "churn_scores_history.csv": "churn_scores_history",
+    "churn_scores_history.csv":     "churn_scores_history",
+    "account_shap_drivers.csv":     "account_shap_drivers",
 }
 
 def main():

@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
+import scipy.sparse
+import shap
 from xgboost import XGBClassifier
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
@@ -11,7 +13,29 @@ from sklearn.metrics import roc_auc_score, average_precision_score
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FEATURES_PATH = os.path.join(BASE_DIR, "data", "mart", "feature_table_30d.csv")
-OUT_PATH = os.path.join(BASE_DIR, "data", "mart", "churn_scores_latest.csv")
+OUT_PATH      = os.path.join(BASE_DIR, "data", "mart", "churn_scores_latest.csv")
+SHAP_OUT_PATH = os.path.join(BASE_DIR, "data", "mart", "account_shap_drivers.csv")
+
+FEATURE_LABELS = {
+    "seats":                     "Number of seats",
+    "tenure_days":               "Account tenure (days)",
+    "active_users_mean_7d":      "Active users — last 7 days",
+    "active_users_mean_14d":     "Active users — last 14 days",
+    "active_users_mean_30d":     "Active users — last 30 days",
+    "sessions_mean_7d":          "Sessions — last 7 days",
+    "sessions_mean_14d":         "Sessions — last 14 days",
+    "sessions_mean_30d":         "Sessions — last 30 days",
+    "events_mean_7d":            "Events — last 7 days",
+    "events_mean_14d":           "Events — last 14 days",
+    "events_mean_30d":           "Events — last 30 days",
+    "revenue_sum_7d":            "Revenue — last 7 days",
+    "revenue_sum_14d":           "Revenue — last 14 days",
+    "revenue_sum_30d":           "Revenue — last 30 days",
+    "sessions_std_30d":          "Session variability (30 days)",
+    "sessions_drop_7v7":         "Session drop: recent vs prior week",
+    "sessions_trend_7_minus_30": "Session trend: 7d vs 30d avg",
+    "days_since_last_activity":  "Days since last activity",
+}
 
 def time_split(df, date_col="snapshot_date"):
     df = df.sort_values(date_col).reset_index(drop=True)
@@ -118,10 +142,44 @@ def main():
     out = out.sort_values("churn_risk_calibrated", ascending=False)
 
     out.to_csv(OUT_PATH, index=False)
-
     print("\nSaved production scores to:", OUT_PATH)
     print("\nTop 10 accounts by calibrated risk:")
     print(out[["account_id", "snapshot_date", "churn_risk_calibrated", "model_score_raw"]].head(10))
+
+    # ── SHAP: top-5 risk drivers per account ─────────────────────────────────
+    print("\nComputing SHAP values...")
+    cat_cols = ["plan_type", "contract_type", "region"]
+    num_cols = [c for c in X_train.columns if c not in cat_cols]
+    ohe_names = pre.named_transformers_["cat"]["ohe"].get_feature_names_out(cat_cols).tolist()
+    all_feature_names = num_cols + ohe_names
+
+    X_dense = X_latest_t.toarray() if scipy.sparse.issparse(X_latest_t) else X_latest_t
+
+    explainer  = shap.TreeExplainer(model)
+    shap_vals  = explainer.shap_values(X_dense)   # (n_accounts, n_features)
+
+    records = []
+    account_ids     = latest_df["account_id"].values
+    snapshot_dates  = latest_df["snapshot_date"].values
+
+    for i in range(len(account_ids)):
+        sv = shap_vals[i]
+        top_idx = np.argsort(sv)[::-1][:5]        # top 5 positive drivers
+        for rank, idx in enumerate(top_idx, 1):
+            fname = all_feature_names[idx]
+            records.append({
+                "account_id":    account_ids[i],
+                "snapshot_date": snapshot_dates[i],
+                "driver_rank":   rank,
+                "feature_name":  fname,
+                "feature_label": FEATURE_LABELS.get(fname, fname.replace("_", " ").title()),
+                "shap_value":    round(float(sv[idx]), 6),
+                "feature_value": round(float(X_dense[i, idx]), 4),
+            })
+
+    shap_df = pd.DataFrame(records)
+    shap_df.to_csv(SHAP_OUT_PATH, index=False)
+    print(f"Saved SHAP drivers: {SHAP_OUT_PATH}  ({len(account_ids)} accounts × 5 drivers)")
 
 if __name__ == "__main__":
     main()
