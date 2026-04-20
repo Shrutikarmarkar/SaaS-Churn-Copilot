@@ -271,6 +271,29 @@ def render_chart(df: pd.DataFrame, query_name: str):
     text = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
     if not num: return
 
+    # Account-list queries: horizontal bar of risk percentile by account
+    if "account_id" in df.columns and "risk_percentile" in df.columns:
+        plot_df = df.sort_values("risk_percentile", ascending=True).head(20)
+        fig = go.Figure(go.Bar(
+            x=plot_df["risk_percentile"],
+            y=plot_df["account_id"].astype(str),
+            orientation="h",
+            text=plot_df["risk_percentile"].round(1),
+            textposition="outside",
+            textfont=dict(size=11, color="#0F172A"),
+            marker=dict(color="#2563EB", line=dict(color="#FFFFFF", width=1)),
+            hovertemplate="<b>%{y}</b><br>Risk %ile: %{x:.1f}<extra></extra>"
+        ))
+        fig.update_layout(
+            height=max(300, len(plot_df) * 32),
+            showlegend=False,
+            xaxis=dict(showgrid=False, tickfont=dict(size=11),
+                       title="Risk Percentile", range=[0, 115]),
+            yaxis=dict(showgrid=False, tickfont=dict(size=11)),
+            **CHART)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        return
+
     if "run_date" in df.columns:
         fig = go.Figure(go.Scatter(
             x=df["run_date"].astype(str), y=df[num[0]],
