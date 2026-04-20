@@ -61,16 +61,10 @@ html, body, [class*="css"] { font-family:'DM Sans',sans-serif; background:#FFFFF
 .hero p { font-size:0.88rem; color:rgba(248,250,252,0.6); margin:0; line-height:1.6; }
 
 /* ── Questions panel ── */
-.q-panel {
-    background: #F1F5F9;
-    border-radius: 16px;
-    padding: 1rem 0.8rem;
-    border: 1px solid #E2E8F0;
-}
 .q-panel-title {
-    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: #64748B;
-    padding: 0 0.4rem 0.8rem;
+    font-size: 0.85rem; font-weight: 800; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #334155;
+    padding: 0 0.4rem 0.6rem;
 }
 
 /* Expander header */
@@ -259,15 +253,12 @@ q_col, r_col = st.columns([3, 7], gap="large")
 
 # ── Left: question panel ──────────────────────────────────────────────────────
 with q_col:
-    st.markdown('<div class="q-panel">', unsafe_allow_html=True)
     st.markdown('<div class="q-panel-title">Questions</div>', unsafe_allow_html=True)
-    st.markdown("<div style='height:0.2rem'></div>", unsafe_allow_html=True)
     for cat, qs in CATEGORIES.items():
         with st.expander(cat, expanded=False):
             for i, (lbl, qn, params) in enumerate(qs):
                 if st.button(lbl, key=f"q_{cat}_{i}", use_container_width=True):
                     run_direct(lbl, qn, params)
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
@@ -313,6 +304,36 @@ def render_chart(df: pd.DataFrame, query_name: str):
         ))
         fig.update_layout(height=360, showlegend=False, paper_bgcolor="#FFFFFF",
                           margin=dict(l=20, r=20, t=30, b=20))
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        return
+
+    # Grouped bar: 2 categorical columns (e.g. plan × region, plan × contract)
+    if len(text) >= 2 and num:
+        group_col = text[0]   # x-axis  (e.g. plan_type)
+        color_col = text[1]   # grouping (e.g. region / contract_type)
+        BLUES = ["#1E3A8A", "#2563EB", "#60A5FA", "#93C5FD", "#BFDBFE"]
+        cats  = list(df[color_col].unique())
+        cmap  = {c: BLUES[i % len(BLUES)] for i, c in enumerate(cats)}
+        ymax  = df[num[0]].max() * 1.35
+        fig   = go.Figure()
+        for cat in cats:
+            sub = df[df[color_col] == cat]
+            fig.add_trace(go.Bar(
+                name=str(cat),
+                x=sub[group_col], y=sub[num[0]],
+                text=sub[num[0]], textposition="outside",
+                textfont=dict(size=11, color="#0F172A"),
+                marker=dict(color=cmap[cat], line=dict(color="#FFFFFF", width=1)),
+                hovertemplate=f"<b>%{{x}}</b> · {cat}<br>%{{y}}<extra></extra>"
+            ))
+        fig.update_layout(
+            height=360, barmode="group", bargap=0.25, bargroupgap=0.08,
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1, font=dict(size=11)),
+            xaxis=dict(showgrid=False, tickfont=dict(size=11)),
+            yaxis=dict(showgrid=False, tickfont=dict(size=11), range=[0, ymax]),
+            **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
         return
 
