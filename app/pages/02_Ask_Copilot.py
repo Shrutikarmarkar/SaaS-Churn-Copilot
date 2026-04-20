@@ -230,7 +230,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Result (shown here so it's visible without scrolling) ─────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
              margin=dict(l=20,r=50,t=50,b=30))
@@ -293,30 +292,6 @@ def render_chart(df: pd.DataFrame, query_name: str):
                                      range=[0, df[num[0]].max()*1.3]),
                           **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-if st.session_state.output:
-    out = st.session_state.output
-    if out["matched_query"] is None:
-        st.error(out["message"])
-    else:
-        st.markdown(f"""
-        <div class="result-card">
-            <div class="result-title">{st.session_state.active_label}</div>
-        </div>""", unsafe_allow_html=True)
-        df = out["result"]
-        qn = out.get("matched_query","")
-        if df is not None and not df.empty:
-            render_chart(df, qn)
-            st.dataframe(df, use_container_width=True, hide_index=True,
-                         column_config={
-                             "risk_percentile":       st.column_config.NumberColumn("Risk %ile", format="%.1f"),
-                             "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                             "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                         })
-        else:
-            st.info("No results returned for this query.")
-
-st.divider()
 
 # ── Presets ───────────────────────────────────────────────────────────────────
 CATEGORIES = {
@@ -395,7 +370,40 @@ with cb2:
     st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
+# ── Result ────────────────────────────────────────────────────────────────────
+if st.session_state.output:
+    import streamlit.components.v1 as components
+    components.html("""<script>
+      function doScroll() {
+        var c = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+        if (c) { c.scrollTop = c.scrollHeight; return; }
+        var c2 = window.parent.document.querySelector('.main');
+        if (c2) { c2.scrollTop = c2.scrollHeight; return; }
+        window.parent.scrollTo(0, window.parent.document.body.scrollHeight);
+      }
+      setTimeout(doScroll, 100);
+      setTimeout(doScroll, 400);
+      setTimeout(doScroll, 800);
+    </script>""", height=1)
 
+    out = st.session_state.output
+    if out["matched_query"] is None:
+        st.error(out["message"])
+    else:
+        st.markdown(f'<div class="result-card"><div class="result-title">{st.session_state.active_label}</div></div>',
+                    unsafe_allow_html=True)
+        df  = out["result"]
+        qn  = out.get("matched_query","")
+        if df is not None and not df.empty:
+            render_chart(df, qn)
+            st.dataframe(df, use_container_width=True, hide_index=True,
+                         column_config={
+                             "risk_percentile":       st.column_config.NumberColumn("Risk %ile", format="%.1f"),
+                             "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                             "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                         })
+        else:
+            st.info("No results returned for this query.")
 
 # ── JS: scroll reveal + ripple ────────────────────────────────────────────────
 st.markdown("""
