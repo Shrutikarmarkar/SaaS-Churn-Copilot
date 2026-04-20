@@ -16,6 +16,7 @@ def _get_engine():
                 pass
         if not url:
             raise RuntimeError("DATABASE_URL is not set. Add it to .streamlit/secrets.toml or as an environment variable.")
+        url = "".join(url.split())  # strip all whitespace/newlines
         _engine = create_engine(url)
     return _engine
 
