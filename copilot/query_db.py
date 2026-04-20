@@ -5,18 +5,31 @@ import os
 _engine = None
 
 def _get_url():
+    # Option 1: full URL from environment
     url = os.environ.get("DATABASE_URL", "").strip()
     if url:
         return "".join(url.split())
+
     try:
         import streamlit as st
-        raw = st.secrets["DATABASE_URL"]
-        return "".join(str(raw).split())
-    except KeyError:
-        raise RuntimeError("DATABASE_URL not found in st.secrets. Check the key name in Streamlit Cloud secrets.")
-    except Exception:
-        pass
-    raise RuntimeError("DATABASE_URL is not set. Add it to Streamlit Cloud secrets or as an environment variable.")
+        s = st.secrets
+
+        # Option 2: full URL stored as one secret
+        if "DATABASE_URL" in s:
+            return "".join(str(s["DATABASE_URL"]).split())
+
+        # Option 3: individual parts (avoids long-line wrapping in Streamlit UI)
+        if "NEON_HOST" in s:
+            host = str(s["NEON_HOST"]).strip()
+            user = str(s["NEON_USER"]).strip()
+            pw   = str(s["NEON_PASS"]).strip()
+            db   = str(s["NEON_DB"]).strip()
+            return f"postgresql+psycopg2://{user}:{pw}@{host}/{db}?sslmode=require"
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to read secrets: {e}")
+
+    raise RuntimeError("DATABASE_URL is not set. Add NEON_HOST/NEON_USER/NEON_PASS/NEON_DB to Streamlit Cloud secrets.")
 
 def _get_engine():
     global _engine
