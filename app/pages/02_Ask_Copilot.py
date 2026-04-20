@@ -11,31 +11,59 @@ if COPILOT_DIR not in sys.path:
 from query_router import answer_direct, answer_question
 
 st.set_page_config(page_title="Ask Copilot", page_icon="🤖",
-                   layout="wide", initial_sidebar_state="collapsed")
+                   layout="wide", initial_sidebar_state="expanded")
 
+# ── Styles ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display&display=swap');
 
 html, body, [class*="css"] { font-family:'DM Sans',sans-serif; background:#FFFFFF; }
 #MainMenu, footer, header { visibility:hidden; }
-.main .block-container { padding:1.8rem 2.8rem 3rem; max-width:1280px; }
+.main .block-container { padding:1.8rem 2.4rem 3rem; max-width:1100px; }
 
-/* ── Keyframes ── */
-@keyframes fadeUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-@keyframes slideIn  { from{opacity:0;transform:translateX(-14px)} to{opacity:1;transform:translateX(0)} }
-@keyframes orbs     { 0%{transform:scale(1) rotate(0deg)} 100%{transform:scale(1.1) rotate(4deg)} }
-@keyframes breathe  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.82)} }
-@keyframes gradText { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
-@keyframes ripple   { 0%{transform:scale(0);opacity:0.55} 100%{transform:scale(3);opacity:0} }
-@keyframes resultIn { from{opacity:0;transform:translateY(18px) scale(0.98)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes pulse    { 0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,0.3)} 50%{box-shadow:0 0 0 8px rgba(37,99,235,0)} }
+@keyframes fadeUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes orbs    { 0%{transform:scale(1) rotate(0deg)} 100%{transform:scale(1.1) rotate(4deg)} }
+@keyframes gradText{ 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+@keyframes ripple  { 0%{transform:scale(0);opacity:0.55} 100%{transform:scale(3);opacity:0} }
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background: #0F172A;
+    padding: 1.2rem 0.8rem;
+}
+[data-testid="stSidebar"] * { color: #F8FAFC !important; }
+[data-testid="stSidebar"] .stExpander {
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 12px !important;
+    margin-bottom: 0.5rem;
+    background: rgba(255,255,255,0.04) !important;
+}
+[data-testid="stSidebar"] button {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    color: #CBD5E1 !important;
+    border-radius: 8px !important;
+    font-size: 0.82rem !important;
+    text-align: left !important;
+    transition: all 0.2s ease !important;
+}
+[data-testid="stSidebar"] button:hover {
+    background: rgba(37,99,235,0.25) !important;
+    border-color: rgba(37,99,235,0.5) !important;
+    color: #FFFFFF !important;
+}
+.sidebar-title {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(248,250,252,0.4);
+    padding: 0.5rem 0.4rem 1rem;
+}
 
 /* ── Hero ── */
 .hero {
     background: linear-gradient(135deg, #0A0F1E 0%, #0F172A 55%, #1A0A2E 100%);
-    border-radius: 24px; padding: 2.8rem 3.2rem;
-    color: #F8FAFC; margin-bottom: 1.8rem;
+    border-radius: 20px; padding: 2.2rem 2.8rem;
+    color: #F8FAFC; margin-bottom: 1.6rem;
     position: relative; overflow: hidden;
     animation: fadeUp 0.5s ease;
 }
@@ -49,154 +77,63 @@ html, body, [class*="css"] { font-family:'DM Sans',sans-serif; background:#FFFFF
 }
 .hero-grid {
     position:absolute; inset:0; pointer-events:none;
-    background-image:
-        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),
+                      linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);
     background-size: 44px 44px;
 }
 .hero-content { position:relative; z-index:1; }
-.hero-eyebrow {
-    font-size:0.72rem; font-weight:700; letter-spacing:0.16em;
-    text-transform:uppercase; color:rgba(248,250,252,0.45);
-    margin-bottom:0.8rem; animation:slideIn 0.5s ease 0.1s both;
-}
+.hero-eyebrow { font-size:0.7rem; font-weight:700; letter-spacing:0.16em;
+                text-transform:uppercase; color:rgba(248,250,252,0.45); margin-bottom:0.6rem; }
 .hero h1 {
-    font-family:'DM Serif Display',serif;
-    font-size:2.8rem; font-weight:400; margin:0 0 0.6rem;
-    background: linear-gradient(120deg, #FFFFFF 0%, #60A5FA 50%, #A78BFA 100%);
-    background-size: 200% auto;
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    background-clip:text;
-    animation: slideIn 0.5s ease 0.2s both, gradText 6s linear infinite;
+    font-family:'DM Serif Display',serif; font-size:2.4rem; font-weight:400; margin:0 0 0.5rem;
+    background:linear-gradient(120deg,#FFFFFF 0%,#C0624A 50%,#A78BFA 100%);
+    background-size:200% auto;
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    animation: gradText 6s linear infinite;
 }
-.hero p {
-    font-size:0.96rem; color:rgba(248,250,252,0.6);
-    margin:0; max-width:480px; line-height:1.65;
-    animation:slideIn 0.5s ease 0.3s both;
-}
-.live-dot {
-    width:8px; height:8px; border-radius:50%;
-    background:#4ADE80; display:inline-block;
-    animation:breathe 2.2s ease infinite;
-}
-
-/* ── Category label ── */
-.cat-label {
-    font-size:0.68rem; font-weight:700; text-transform:uppercase;
-    letter-spacing:0.1em; color:#64748B; margin:0.8rem 0 0.5rem;
-    display:flex; align-items:center; gap:0.4rem;
-}
-.cat-label::after {
-    content:''; flex:1; height:1px; background:#F1F5F9;
-}
-
-/* ── Question buttons ── */
-div[data-testid="stButton"] > button {
-    border-radius:10px; font-size:0.83rem; font-weight:500;
-    border:1px solid #E2E8F0; background:#FFFFFF; color:#1E293B;
-    padding:0.55rem 0.85rem; text-align:left;
-    box-shadow:0 1px 3px rgba(0,0,0,0.05);
-    transition:all 0.2s cubic-bezier(.4,0,.2,1); width:100%;
-    position:relative; overflow:hidden;
-}
-div[data-testid="stButton"] > button:hover {
-    background:#EFF6FF; border-color:#93C5FD;
-    color:#1D4ED8; box-shadow:0 4px 12px rgba(37,99,235,0.14);
-    transform:translateY(-2px);
-}
-div[data-testid="stButton"] > button[kind="primary"] {
-    background:linear-gradient(135deg,#2563EB,#1D4ED8);
-    border:none; color:#FFFFFF; font-weight:700;
-    box-shadow:0 4px 14px rgba(37,99,235,0.38);
-    animation:pulse 2.5s ease infinite;
-}
-div[data-testid="stButton"] > button[kind="primary"]:hover {
-    background:linear-gradient(135deg,#1D4ED8,#1E40AF);
-    box-shadow:0 6px 22px rgba(37,99,235,0.48);
-    transform:translateY(-2px);
-    animation:none;
-}
-
-/* ── Back button ── */
-div[data-testid="stButton"] > button:not([kind="primary"]):first-of-type {
-    border-radius:10px; font-size:0.82rem;
-    border:1px solid #E2E8F0; background:#F8FAFC; color:#475569;
-}
-div[data-testid="stButton"] > button:not([kind="primary"]):first-of-type:hover {
-    background:#FFFFFF; color:#0F172A; border-color:#CBD5E1;
-    transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,0.08);
-}
-
-/* ── Tabs ── */
-div[data-testid="stTabs"] [data-baseweb="tab-list"] {
-    background:#F8FAFC; border-radius:14px;
-    border:1px solid #E2E8F0; padding:0.3rem; gap:0.15rem;
-    box-shadow:0 1px 4px rgba(0,0,0,0.05);
-}
-div[data-testid="stTabs"] [data-baseweb="tab"] {
-    border-radius:10px; font-size:0.8rem; font-weight:500;
-    padding:0.42rem 0.8rem; color:#475569;
-    transition:all 0.2s ease;
-}
-div[data-testid="stTabs"] [data-baseweb="tab"]:hover {
-    background:rgba(37,99,235,0.06); color:#2563EB;
-}
-div[data-testid="stTabs"] [aria-selected="true"] {
-    background:linear-gradient(135deg,#1D4ED8,#2563EB) !important;
-    color:#FFFFFF !important; font-weight:700 !important;
-    box-shadow:0 2px 8px rgba(37,99,235,0.3) !important;
-}
+.hero p { font-size:0.9rem; color:rgba(248,250,252,0.6); margin:0; line-height:1.6; }
 
 /* ── Result card ── */
 .result-card {
-    background:#FFFFFF; border-radius:20px;
-    border:1px solid #E2E8F0;
-    box-shadow:0 4px 24px rgba(0,0,0,0.08);
-    padding:1.8rem 2rem 1.4rem;
-    margin-top:1.5rem;
-    animation: resultIn 0.45s cubic-bezier(.4,0,.2,1);
+    background:#F8FAFC; border-radius:16px;
+    padding:1rem 1.4rem; margin-bottom:1rem;
+    border-left:4px solid #2563EB;
+    animation: fadeUp 0.3s ease;
 }
-.result-title {
-    font-family:'DM Serif Display',serif;
-    font-size:1.15rem; font-weight:400; color:#0F172A;
-    margin-bottom:1.2rem; padding-bottom:0.8rem;
-    border-bottom:1px solid #F1F5F9;
-    display:flex; align-items:center; gap:0.5rem;
-}
-.result-title::before {
-    content:''; width:3px; height:1.1rem;
-    background:linear-gradient(180deg,#2563EB,#7C3AED);
-    border-radius:2px; display:inline-block; flex-shrink:0;
+.result-title { font-size:1rem; font-weight:700; color:#0F172A; }
+
+/* ── Placeholder ── */
+.placeholder {
+    background:#F8FAFC; border:2px dashed #E2E8F0;
+    border-radius:20px; padding:3rem 2rem;
+    text-align:center; color:#94A3B8;
+    font-size:1rem;
 }
 
-/* ── Custom input section ── */
-.input-section {
-    background:#F8FAFC; border:1px solid #E2E8F0;
-    border-radius:16px; padding:1.2rem 1.5rem;
-    margin-top:0.5rem;
-}
-
-/* ── Text input ── */
+/* ── Custom input ── */
 .stTextInput input {
-    border-radius:10px; border:1.5px solid #E2E8F0;
-    background:#FFFFFF; font-size:0.88rem;
-    padding:0.6rem 1rem; color:#0F172A;
-    font-family:'DM Sans',sans-serif;
-    transition:border 0.2s, box-shadow 0.2s;
+    border:2px solid #E2E8F0 !important; border-radius:12px !important;
+    padding:0.7rem 1rem !important; font-size:0.95rem !important;
+    font-family:'DM Sans',sans-serif !important;
+    transition:border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .stTextInput input:focus {
-    border-color:#2563EB;
-    box-shadow:0 0 0 3px rgba(37,99,235,0.12);
-    outline:none;
+    border-color:#2563EB !important;
+    box-shadow:0 0 0 4px rgba(37,99,235,0.1) !important;
+    outline:none !important;
 }
-.stTextInput input::placeholder { color:#94A3B8; }
 
-/* ── Scroll reveal ── */
-.reveal { opacity:0; transform:translateY(20px); transition:opacity 0.6s ease, transform 0.6s ease; }
-.revealed { opacity:1 !important; transform:translateY(0) !important; }
-
-/* ── Dataframe ── */
-[data-testid="stDataFrame"] { border-radius:12px; overflow:hidden; }
+/* ── Primary button ── */
+div[data-testid="stButton"] > button[kind="primary"] {
+    background:linear-gradient(135deg,#C0624A 0%,#E8724A 100%);
+    border:none; border-radius:10px; color:#FFFFFF;
+    font-weight:700; font-family:'DM Sans',sans-serif;
+    transition:all 0.2s ease;
+}
+div[data-testid="stButton"] > button[kind="primary"]:hover {
+    background:linear-gradient(135deg,#A8533E 0%,#C0624A 100%);
+    transform:translateY(-1px);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -212,7 +149,66 @@ def run_text(q):
     st.session_state.active_label = q
     st.session_state.output       = answer_question(q)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# ── Sidebar: question buttons ─────────────────────────────────────────────────
+CATEGORIES = {
+    "📊 Risk Overview": [
+        ("Top 10 high-risk accounts",        "top_risk_accounts",         {"limit":10}),
+        ("Top 25 high-risk accounts",        "top_risk_accounts",         {"limit":25}),
+        ("Top 50 high-risk accounts",        "top_risk_accounts",         {"limit":50}),
+        ("Risk distribution by bucket",      "risk_bucket_distribution",  {}),
+        ("Risk distribution by band",        "risk_band_distribution",    {}),
+        ("Total high-risk count",            "high_risk_count",           {}),
+        ("Accounts in Top 1%",               "top_1_percent",             {}),
+        ("Accounts in Top 5%",               "top_5_percent",             {}),
+        ("Accounts in Top 10%",              "top_10_percent",            {}),
+    ],
+    "📋 By Plan": [
+        ("Churn risk by plan",               "avg_risk_by_plan",          {}),
+        ("High-risk count by plan",          "high_risk_by_plan",         {}),
+        ("Enterprise high-risk accounts",    "enterprise_high_risk",      {}),
+        ("Pro high-risk accounts",           "pro_high_risk",             {}),
+        ("Basic high-risk accounts",         "basic_high_risk",           {}),
+    ],
+    "🌍 By Region": [
+        ("Churn risk by region",             "avg_risk_by_region",        {}),
+        ("High-risk count by region",        "high_risk_by_region",       {}),
+        ("High-risk in NA",                  "high_risk_na",              {}),
+        ("High-risk in EU",                  "high_risk_eu",              {}),
+        ("High-risk in APAC",                "high_risk_apac",            {}),
+    ],
+    "📝 By Contract": [
+        ("Risk by contract type",            "avg_risk_by_contract",      {}),
+        ("High-risk Monthly accounts",       "monthly_high_risk",         {}),
+        ("High-risk Annual accounts",        "annual_high_risk",          {}),
+    ],
+    "🔀 Segments": [
+        ("Risk by plan × region",            "risk_by_plan_and_region",      {}),
+        ("Risk by plan × contract",          "risk_by_plan_and_contract",    {}),
+        ("Enterprise + Monthly high-risk",   "enterprise_monthly_high_risk", {}),
+    ],
+    "💰 Revenue at Risk": [
+        ("Total revenue at risk",            "revenue_at_risk",           {}),
+        ("Revenue at risk by plan",          "revenue_at_risk_by_plan",   {}),
+        ("Revenue at risk by region",        "revenue_at_risk_by_region", {}),
+    ],
+    "📈 Weekly Trends": [
+        ("High-risk count over time",        "high_risk_trend",           {}),
+        ("Average risk over time",           "avg_risk_trend",            {}),
+        ("Week-over-week summary",           "week_over_week_summary",    {}),
+        ("Newly high-risk this week",        "new_high_risk_accounts",    {}),
+        ("Accounts that recovered",          "recovered_accounts",        {}),
+    ],
+}
+
+with st.sidebar:
+    st.markdown('<div class="sidebar-title">Questions</div>', unsafe_allow_html=True)
+    for cat, qs in CATEGORIES.items():
+        with st.expander(cat, expanded=False):
+            for i, (lbl, qn, params) in enumerate(qs):
+                if st.button(lbl, key=f"sb_{cat}_{i}", use_container_width=True):
+                    run_direct(lbl, qn, params)
+
+# ── Main area ─────────────────────────────────────────────────────────────────
 cb, _ = st.columns([1,9])
 with cb:
     if st.button("← Dashboard"):
@@ -225,11 +221,26 @@ st.markdown("""
   <div class="hero-content">
     <div class="hero-eyebrow">Churn Intelligence</div>
     <h1>Ask Copilot</h1>
-    <p>Click a preset question or type your own — every answer is backed by a live database query.</p>
+    <p>Pick a question from the sidebar or type your own below.</p>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
+# ── Custom input ──────────────────────────────────────────────────────────────
+ci, cb2 = st.columns([8,1])
+with ci:
+    custom = st.text_input("", placeholder="e.g. high risk Enterprise accounts in EU with Monthly contracts",
+                           label_visibility="collapsed")
+with cb2:
+    st.markdown("<div style='padding-top:0.28rem'>", unsafe_allow_html=True)
+    if st.button("Run →", type="primary", use_container_width=True):
+        if custom.strip(): run_text(custom.strip())
+        else: st.warning("Please enter a question.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+st.divider()
+
+# ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
              margin=dict(l=20,r=50,t=50,b=30))
@@ -293,99 +304,8 @@ def render_chart(df: pd.DataFrame, query_name: str):
                           **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
 
-# ── Presets ───────────────────────────────────────────────────────────────────
-CATEGORIES = {
-    "📊 Risk Overview": [
-        ("Top 10 high-risk accounts",        "top_risk_accounts",         {"limit":10}),
-        ("Top 25 high-risk accounts",        "top_risk_accounts",         {"limit":25}),
-        ("Top 50 high-risk accounts",        "top_risk_accounts",         {"limit":50}),
-        ("Risk distribution by bucket",      "risk_bucket_distribution",  {}),
-        ("Risk distribution by band",        "risk_band_distribution",    {}),
-        ("Total high-risk count",            "high_risk_count",           {}),
-        ("Accounts in Top 1%",               "top_1_percent",             {}),
-        ("Accounts in Top 5%",               "top_5_percent",             {}),
-        ("Accounts in Top 10%",              "top_10_percent",            {}),
-    ],
-    "📋 By Plan": [
-        ("Churn risk by plan",               "avg_risk_by_plan",          {}),
-        ("High-risk count by plan",          "high_risk_by_plan",         {}),
-        ("Enterprise high-risk accounts",    "enterprise_high_risk",      {}),
-        ("Pro high-risk accounts",           "pro_high_risk",             {}),
-        ("Basic high-risk accounts",         "basic_high_risk",           {}),
-    ],
-    "🌍 By Region": [
-        ("Churn risk by region",             "avg_risk_by_region",        {}),
-        ("High-risk count by region",        "high_risk_by_region",       {}),
-        ("High-risk in NA",                  "high_risk_na",              {}),
-        ("High-risk in EU",                  "high_risk_eu",              {}),
-        ("High-risk in APAC",                "high_risk_apac",            {}),
-    ],
-    "📝 By Contract": [
-        ("Risk by contract type",            "avg_risk_by_contract",      {}),
-        ("High-risk Monthly accounts",       "monthly_high_risk",         {}),
-        ("High-risk Annual accounts",        "annual_high_risk",          {}),
-    ],
-    "🔀 Segments": [
-        ("Risk by plan × region",            "risk_by_plan_and_region",      {}),
-        ("Risk by plan × contract",          "risk_by_plan_and_contract",    {}),
-        ("Enterprise + Monthly high-risk",   "enterprise_monthly_high_risk", {}),
-    ],
-    "💰 Revenue at Risk": [
-        ("Total revenue at risk",            "revenue_at_risk",           {}),
-        ("Revenue at risk by plan",          "revenue_at_risk_by_plan",   {}),
-        ("Revenue at risk by region",        "revenue_at_risk_by_region", {}),
-    ],
-    "📈 Weekly Trends": [
-        ("High-risk count over time",        "high_risk_trend",           {}),
-        ("Average risk over time",           "avg_risk_trend",            {}),
-        ("Week-over-week summary",           "week_over_week_summary",    {}),
-        ("Newly high-risk this week",        "new_high_risk_accounts",    {}),
-        ("Accounts that recovered",          "recovered_accounts",        {}),
-    ],
-}
-
-tabs = st.tabs(list(CATEGORIES.keys()))
-for tab, (cat, qs) in zip(tabs, CATEGORIES.items()):
-    with tab:
-        st.markdown('<div class="cat-label">Select a question</div>', unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        for i, (lbl, qn, params) in enumerate(qs):
-            with (c1 if i%2==0 else c2):
-                if st.button(lbl, key=f"q_{cat}_{i}", use_container_width=True):
-                    run_direct(lbl, qn, params)
-
-# ── Custom input ──────────────────────────────────────────────────────────────
-st.divider()
-st.markdown('<div class="input-section">', unsafe_allow_html=True)
-st.markdown('<p class="cat-label">Or type your own question</p>', unsafe_allow_html=True)
-ci, cb2 = st.columns([7,1])
-with ci:
-    custom = st.text_input("", placeholder="e.g.  high risk Enterprise accounts in EU with Monthly contracts",
-                           label_visibility="collapsed")
-with cb2:
-    st.markdown("<div style='padding-top:0.28rem'>", unsafe_allow_html=True)
-    if st.button("Run →", type="primary", use_container_width=True):
-        if custom.strip(): run_text(custom.strip())
-        else: st.warning("Please enter a question.")
-    st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
-
 # ── Result ────────────────────────────────────────────────────────────────────
 if st.session_state.output:
-    import streamlit.components.v1 as components
-    components.html("""<script>
-      function doScroll() {
-        var c = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
-        if (c) { c.scrollTop = c.scrollHeight; return; }
-        var c2 = window.parent.document.querySelector('.main');
-        if (c2) { c2.scrollTop = c2.scrollHeight; return; }
-        window.parent.scrollTo(0, window.parent.document.body.scrollHeight);
-      }
-      setTimeout(doScroll, 100);
-      setTimeout(doScroll, 400);
-      setTimeout(doScroll, 800);
-    </script>""", height=1)
-
     out = st.session_state.output
     if out["matched_query"] is None:
         st.error(out["message"])
@@ -404,71 +324,9 @@ if st.session_state.output:
                          })
         else:
             st.info("No results returned for this query.")
-
-# ── JS: scroll reveal + ripple ────────────────────────────────────────────────
-st.markdown("""
-<script>
-(function() {
-  function init() {
-
-    /* Scroll reveal */
-    var obs = new IntersectionObserver(function(entries) {
-      entries.forEach(function(e) {
-        if (e.isIntersecting) { e.target.classList.add('revealed'); obs.unobserve(e.target); }
-      });
-    }, { threshold: 0.06 });
-    document.querySelectorAll('.reveal').forEach(function(el) { obs.observe(el); });
-
-    /* Ripple on buttons */
-    document.querySelectorAll('button').forEach(function(btn) {
-      if (btn._hasRipple) return;
-      btn._hasRipple = true;
-      btn.style.position = 'relative';
-      btn.style.overflow = 'hidden';
-      btn.addEventListener('click', function(e) {
-        var rect = btn.getBoundingClientRect();
-        var size = Math.max(rect.width, rect.height) * 2;
-        var span = document.createElement('span');
-        span.style.cssText = [
-          'position:absolute','border-radius:50%','pointer-events:none',
-          'width:' + size + 'px','height:' + size + 'px',
-          'left:' + (e.clientX - rect.left - size/2) + 'px',
-          'top:'  + (e.clientY - rect.top  - size/2) + 'px',
-          'background:rgba(255,255,255,0.28)',
-          'animation:ripple 0.55s ease-out forwards'
-        ].join(';');
-        btn.appendChild(span);
-        setTimeout(function() { span.remove(); }, 600);
-      });
-    });
-
-    /* Input focus glow */
-    document.querySelectorAll('input[type="text"]').forEach(function(inp) {
-      inp.addEventListener('focus', function() {
-        inp.parentElement.style.transition = 'box-shadow 0.2s ease';
-        inp.parentElement.style.boxShadow  = '0 0 0 4px rgba(37,99,235,0.1)';
-        inp.parentElement.style.borderRadius = '12px';
-      });
-      inp.addEventListener('blur', function() {
-        inp.parentElement.style.boxShadow = '';
-      });
-    });
-
-  }
-
-    /* Auto-scroll to result anchor */
-    var anchor = document.getElementById('result-anchor');
-    if (anchor) {
-      anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 300); });
-  } else {
-    setTimeout(init, 300);
-  }
-})();
-</script>
-""", unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <div class="placeholder">
+        👈 &nbsp; Select a question from the sidebar to see the chart here
+    </div>
+    """, unsafe_allow_html=True)
