@@ -285,6 +285,9 @@ D = load_data()
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
              margin=dict(l=10,r=10,t=20,b=10))
+CHART_TALL = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
+                  font=dict(family="DM Sans", color="#0F172A"),
+                  margin=dict(l=10,r=10,t=45,b=10))
 GRID  = "#E2E8F0"
 
 # ── Hero ──────────────────────────────────────────────────────────────────────
@@ -317,6 +320,8 @@ with c2:
                 unsafe_allow_html=True)
 
 # ── Metric Cards ──────────────────────────────────────────────────────────────
+if not D.get("ok"):
+    st.error(f"⚠️ Database error: {D.get('error', 'Unknown')}")
 if D.get("ok") and not D["wow"].empty:
     r = D["wow"].iloc[0]
     high_now  = int(r["high_now"]);  high_prev = int(r["high_prev"])
@@ -376,8 +381,7 @@ if D.get("ok"):
             fig.update_layout(height=320, showlegend=False,
                               xaxis=dict(showgrid=False, tickfont=dict(size=12)),
                               yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
-                              margin=dict(l=10,r=10,t=40,b=10),
-                              **{k:v for k,v in CHART.items() if k != "margin"})
+                              **CHART_TALL)
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -431,8 +435,7 @@ if D.get("ok"):
             fig3.update_layout(height=300, bargap=0.4, showlegend=False,
                                xaxis=dict(showgrid=False, tickfont=dict(size=12)),
                                yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
-                               margin=dict(l=10,r=10,t=40,b=10),
-                               **{k:v for k,v in CHART.items() if k != "margin"})
+                               **CHART_TALL)
             st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -454,8 +457,7 @@ if D.get("ok"):
             fig4.update_layout(height=300, bargap=0.4, showlegend=False,
                                xaxis=dict(showgrid=False, tickfont=dict(size=12)),
                                yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12), range=[0,110]),
-                               margin=dict(l=10,r=10,t=40,b=10),
-                               **{k:v for k,v in CHART.items() if k != "margin"})
+                               **CHART_TALL)
             st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
