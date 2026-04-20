@@ -230,6 +230,94 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ── Result (shown here so it's visible without scrolling) ─────────────────────
+CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
+             font=dict(family="DM Sans", color="#0F172A"),
+             margin=dict(l=20,r=50,t=50,b=30))
+GRID  = "#E2E8F0"
+PALET = ["#2563EB"] * 10
+
+def render_chart(df: pd.DataFrame, query_name: str):
+    if df is None or df.empty or len(df) < 2: return
+    num  = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    text = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
+    if not num: return
+
+    if "run_date" in df.columns:
+        fig = go.Figure(go.Scatter(
+            x=df["run_date"].astype(str), y=df[num[0]],
+            mode="lines+markers+text",
+            text=df[num[0]], textposition="top center",
+            textfont=dict(size=11, color="#0F172A"),
+            cliponaxis=False,
+            line=dict(color="#2563EB", width=3),
+            marker=dict(size=10, color="#2563EB", line=dict(color="white", width=2)),
+            fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",
+            hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
+        ))
+        ymax = df[num[0]].max() * 1.25
+        fig.update_layout(height=380, showlegend=False,
+                          xaxis=dict(showgrid=False, tickfont=dict(size=12)),
+                          yaxis=dict(showgrid=False, tickfont=dict(size=12), range=[0, ymax]),
+                          **CHART)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+        return
+
+    if query_name in ("risk_bucket_distribution","risk_band_distribution") and text:
+        cmap = {"High":"#1E3A8A","Medium":"#2563EB","Low":"#93C5FD",
+                "Top 1%":"#1E3A8A","Top 5%":"#1D4ED8","Top 10%":"#2563EB",
+                "Top 25%":"#60A5FA","Rest":"#BFDBFE"}
+        colors = [cmap.get(l,"#94A3B8") for l in df[text[0]]]
+        fig = go.Figure(go.Pie(
+            labels=df[text[0]], values=df[num[0]], hole=0.58,
+            marker=dict(colors=colors, line=dict(color="#FFFFFF", width=3)),
+            textinfo="label+percent", textfont=dict(size=11),
+            hovertemplate="<b>%{label}</b><br>%{value} accounts<extra></extra>"
+        ))
+        fig.update_layout(height=380, showlegend=False, paper_bgcolor="#FFFFFF",
+                          margin=dict(l=20,r=20,t=30,b=20))
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+        return
+
+    if text and num:
+        fig = go.Figure(go.Bar(
+            x=df[text[0]], y=df[num[0]],
+            text=df[num[0]], textposition="outside",
+            textfont=dict(size=12, color="#0F172A"),
+            marker=dict(color=PALET[:len(df)], line=dict(color="#FFFFFF", width=1)),
+            hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
+        ))
+        fig.update_layout(height=380, bargap=0.38, showlegend=False,
+                          xaxis=dict(showgrid=False, tickfont=dict(size=12)),
+                          yaxis=dict(showgrid=False, tickfont=dict(size=12),
+                                     range=[0, df[num[0]].max()*1.3]),
+                          **CHART)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
+
+if st.session_state.output:
+    out = st.session_state.output
+    if out["matched_query"] is None:
+        st.error(out["message"])
+    else:
+        st.markdown(f"""
+        <div class="result-card">
+            <div class="result-title">{st.session_state.active_label}</div>
+        </div>""", unsafe_allow_html=True)
+        df = out["result"]
+        qn = out.get("matched_query","")
+        if df is not None and not df.empty:
+            render_chart(df, qn)
+            st.dataframe(df, use_container_width=True, hide_index=True,
+                         column_config={
+                             "risk_percentile":       st.column_config.NumberColumn("Risk %ile", format="%.1f"),
+                             "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                             "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                         })
+        else:
+            st.info("No results returned for this query.")
+
+st.divider()
+
 # ── Presets ───────────────────────────────────────────────────────────────────
 CATEGORIES = {
     "📊 Risk Overview": [
@@ -307,106 +395,6 @@ with cb2:
     st.markdown("</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ── Chart renderer ────────────────────────────────────────────────────────────
-CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-             font=dict(family="DM Sans", color="#0F172A"),
-             margin=dict(l=20,r=50,t=50,b=30))
-GRID  = "#E2E8F0"
-PALET = ["#2563EB"] * 10
-
-def render_chart(df: pd.DataFrame, query_name: str):
-    if df is None or df.empty or len(df) < 2: return
-    num  = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
-    text = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
-    if not num: return
-
-    if "run_date" in df.columns:
-        fig = go.Figure(go.Scatter(
-            x=df["run_date"].astype(str), y=df[num[0]],
-            mode="lines+markers+text",
-            text=df[num[0]], textposition="top center",
-            textfont=dict(size=11, color="#0F172A"),
-            cliponaxis=False,
-            line=dict(color="#2563EB", width=3),
-            marker=dict(size=10, color="#2563EB", line=dict(color="white", width=2)),
-            fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",
-            hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
-        ))
-        ymax = df[num[0]].max() * 1.25
-        fig.update_layout(height=380, showlegend=False,
-                          xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                          yaxis=dict(showgrid=False, tickfont=dict(size=12), range=[0, ymax]),
-                          **CHART)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-        return
-
-    if query_name in ("risk_bucket_distribution","risk_band_distribution") and text:
-        cmap = {"High":"#1E3A8A","Medium":"#2563EB","Low":"#93C5FD",
-                "Top 1%":"#1E3A8A","Top 5%":"#1D4ED8","Top 10%":"#2563EB",
-                "Top 25%":"#60A5FA","Rest":"#BFDBFE"}
-        colors = [cmap.get(l,"#94A3B8") for l in df[text[0]]]
-        fig = go.Figure(go.Pie(
-            labels=df[text[0]], values=df[num[0]], hole=0.58,
-            marker=dict(colors=colors, line=dict(color="#FFFFFF", width=3)),
-            textinfo="label+percent", textfont=dict(size=11),
-            hovertemplate="<b>%{label}</b><br>%{value} accounts<extra></extra>"
-        ))
-        fig.update_layout(height=380, showlegend=False, paper_bgcolor="#FFFFFF",
-                          margin=dict(l=20,r=20,t=30,b=20))
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-        return
-
-    if text and num:
-        fig = go.Figure(go.Bar(
-            x=df[text[0]], y=df[num[0]],
-            text=df[num[0]], textposition="outside",
-            textfont=dict(size=12, color="#0F172A"),
-            marker=dict(color=PALET[:len(df)], line=dict(color="#FFFFFF", width=1)),
-            hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
-        ))
-        fig.update_layout(height=380, bargap=0.38, showlegend=False,
-                          xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                          yaxis=dict(showgrid=False, tickfont=dict(size=12),
-                                     range=[0, df[num[0]].max()*1.3]),
-                          **CHART)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-# ── Result ────────────────────────────────────────────────────────────────────
-if st.session_state.output:
-    import streamlit.components.v1 as components
-    components.html("""
-    <script>
-      setTimeout(function() {
-        var sel = '[data-testid="stAppViewContainer"]';
-        var el = window.parent.document.querySelector(sel);
-        if (el) { el.scrollTo({top: el.scrollHeight, behavior: 'smooth'}); }
-        else { window.parent.scrollTo({top: window.parent.document.body.scrollHeight, behavior: 'smooth'}); }
-      }, 200);
-    </script>
-    """, height=1)
-    st.markdown('<div id="result-anchor"></div>', unsafe_allow_html=True)
-    out = st.session_state.output
-    if out["matched_query"] is None:
-        st.error(out["message"])
-    else:
-        st.markdown(f"""
-        <div class="result-card">
-            <div class="result-title">{st.session_state.active_label}</div>
-        </div>""", unsafe_allow_html=True)
-
-        df = out["result"]
-        qn = out.get("matched_query","")
-
-        if df is not None and not df.empty:
-            render_chart(df, qn)
-            st.dataframe(df, use_container_width=True, hide_index=True,
-                         column_config={
-                             "risk_percentile":       st.column_config.NumberColumn("Risk %ile", format="%.1f"),
-                             "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                             "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                         })
-        else:
-            st.info("No results returned for this query.")
 
 
 # ── JS: scroll reveal + ripple ────────────────────────────────────────────────
