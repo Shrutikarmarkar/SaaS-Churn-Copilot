@@ -72,8 +72,44 @@ html, body, [class*="css"] { font-family:'DM Sans',sans-serif; background:#FFFFF
     text-transform: uppercase; color: rgba(248,250,252,0.4);
     padding: 0 0.4rem 0.8rem;
 }
-[data-testid="stExpander"] summary {
-    color: #F8FAFC !important;
+
+/* Force expander header text to be white on the dark panel */
+[data-testid="stExpander"] {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 10px !important;
+    margin-bottom: 0.4rem !important;
+}
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span,
+[data-testid="stExpander"] details summary div p {
+    color: #F1F5F9 !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+}
+[data-testid="stExpander"] svg {
+    fill: #F1F5F9 !important;
+    stroke: #F1F5F9 !important;
+}
+
+/* Buttons inside expanders */
+[data-testid="stExpander"] button {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    color: #CBD5E1 !important;
+    border-radius: 8px !important;
+    font-size: 0.82rem !important;
+    text-align: left !important;
+    transition: all 0.2s ease !important;
+}
+[data-testid="stExpander"] button:hover {
+    background: rgba(37,99,235,0.25) !important;
+    border-color: rgba(37,99,235,0.5) !important;
+    color: #FFFFFF !important;
+}
+[data-testid="stExpander"] button p {
+    color: inherit !important;
 }
 
 /* ── Result card ── */
