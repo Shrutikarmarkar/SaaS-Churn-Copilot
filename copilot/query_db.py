@@ -4,20 +4,24 @@ import os
 
 _engine = None
 
+def _get_url():
+    url = os.environ.get("DATABASE_URL", "").strip()
+    if url:
+        return "".join(url.split())
+    try:
+        import streamlit as st
+        raw = st.secrets["DATABASE_URL"]
+        return "".join(str(raw).split())
+    except KeyError:
+        raise RuntimeError("DATABASE_URL not found in st.secrets. Check the key name in Streamlit Cloud secrets.")
+    except Exception:
+        pass
+    raise RuntimeError("DATABASE_URL is not set. Add it to Streamlit Cloud secrets or as an environment variable.")
+
 def _get_engine():
     global _engine
     if _engine is None:
-        url = os.environ.get("DATABASE_URL")
-        if not url:
-            try:
-                import streamlit as st
-                url = st.secrets.get("DATABASE_URL")
-            except Exception:
-                pass
-        if not url:
-            raise RuntimeError("DATABASE_URL is not set. Add it to .streamlit/secrets.toml or as an environment variable.")
-        url = "".join(url.split())  # strip all whitespace/newlines
-        _engine = create_engine(url)
+        _engine = create_engine(_get_url())
     return _engine
 
 def run_query(sql: str) -> pd.DataFrame:
