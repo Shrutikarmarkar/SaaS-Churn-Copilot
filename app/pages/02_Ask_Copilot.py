@@ -273,6 +273,109 @@ with q_col:
         else:
             st.warning("Enter an account ID.")
 
+# ── SHAP insight card renderer ────────────────────────────────────────────────
+def _insight_sentence(fname: str, value: float, avg: float) -> str:
+    """Return a plain-English sentence explaining why this feature drives risk."""
+    v, a = float(value), float(avg) if avg else 0.001
+    pct = abs((v - a) / max(abs(a), 0.001) * 100)
+
+    if fname == "days_since_last_activity":
+        if v > a * 1.3:
+            return f"Last activity {int(v)} days ago vs avg {a:.0f} days — account appears disengaged."
+        return f"Last activity {int(v)} days ago (avg {a:.0f} days)."
+
+    if fname in ("sessions_mean_7d", "sessions_mean_14d", "sessions_mean_30d"):
+        period = fname.split("_")[-1]
+        if v < a * 0.5:
+            return f"{v:.2f} sessions/day vs avg {a:.2f} — {pct:.0f}% below average. Very low engagement."
+        return f"{v:.2f} sessions/day vs avg {a:.2f} over last {period}."
+
+    if fname in ("active_users_mean_7d", "active_users_mean_14d", "active_users_mean_30d"):
+        period = fname.split("_")[-1]
+        if v < a * 0.5:
+            return f"{v:.2f} active users/day vs avg {a:.2f} — {pct:.0f}% fewer users active in the last {period}."
+        return f"{v:.2f} active users/day (avg {a:.2f}) over last {period}."
+
+    if fname in ("events_mean_7d", "events_mean_14d", "events_mean_30d"):
+        period = fname.split("_")[-1]
+        if v < a * 0.5:
+            return f"{v:.2f} events/day vs avg {a:.2f} — product usage is significantly below average."
+        return f"{v:.2f} events/day (avg {a:.2f}) over last {period}."
+
+    if fname == "sessions_drop_7v7":
+        if v > 0.2:
+            return f"Sessions dropped {v:.0%} week-over-week — recent disengagement spike."
+        return f"Session change week-over-week: {v:+.2f} (avg {a:+.2f})."
+
+    if fname == "sessions_trend_7_minus_30":
+        if v < -0.1:
+            return f"7-day avg is {abs(v):.2f} below 30-day avg — declining usage trend."
+        return f"Session trend (7d vs 30d): {v:+.2f} (avg {a:+.2f})."
+
+    if fname == "seats":
+        return f"Account has {int(v)} seat(s) vs avg {a:.1f} — {'small account with limited team reach.' if v < a else 'seat count is above average.'}"
+
+    if fname == "tenure_days":
+        years = v / 365
+        return f"Account is {years:.1f} years old (avg {a/365:.1f} yrs) — {'long-tenured accounts can go stale if engagement drops.' if v > a else 'relatively new account.'}"
+
+    if "revenue" in fname:
+        period = fname.split("_")[-1]
+        return f"${v:.2f} revenue last {period} vs avg ${a:.2f}."
+
+    return f"Value: {v:.3f} vs population avg {a:.3f}."
+
+
+def _render_shap_cards(df: pd.DataFrame):
+    st.markdown("""
+    <style>
+    .shap-card {
+        background: #F8FAFC; border-radius: 14px;
+        padding: 1rem 1.2rem; margin-bottom: 0.7rem;
+        border-left: 5px solid #EF4444;
+    }
+    .shap-card.green { border-left-color: #22C55E; }
+    .shap-card-title {
+        font-size: 0.95rem; font-weight: 700; color: #0F172A; margin-bottom: 0.25rem;
+    }
+    .shap-card-body { font-size: 0.88rem; color: #475569; line-height: 1.5; }
+    .shap-badge {
+        display: inline-block; font-size: 0.72rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 20px; margin-left: 8px;
+        vertical-align: middle;
+    }
+    .shap-badge.red  { background: #FEE2E2; color: #B91C1C; }
+    .shap-badge.grn  { background: #DCFCE7; color: #15803D; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("**Top risk drivers — what's making this account high risk:**")
+    st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
+
+    for _, row in df.iterrows():
+        fname  = str(row.get("feature_name", ""))
+        label  = str(row["driver"])
+        value  = float(row["value"])
+        avg    = float(row.get("pop_avg", 0))
+        shap_v = float(row["shap_value"])
+
+        is_risk  = shap_v > 0
+        cls      = "" if is_risk else " green"
+        badge_cls = "red" if is_risk else "grn"
+        badge_txt = "↑ Increases risk" if is_risk else "↓ Reduces risk"
+        sentence  = _insight_sentence(fname, value, avg)
+
+        st.markdown(f"""
+        <div class="shap-card{cls}">
+            <div class="shap-card-title">
+                {label}
+                <span class="shap-badge {badge_cls}">{badge_txt}</span>
+            </div>
+            <div class="shap-card-body">{sentence}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
 # ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
@@ -287,28 +390,9 @@ def render_chart(df: pd.DataFrame, query_name: str):
     text = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
     if not num: return
 
-    # SHAP explanation: driver / shap_value / value / driver_rank
+    # SHAP explanation: render plain-English insight cards
     if "driver" in df.columns and "shap_value" in df.columns:
-        df_s = df.sort_values("shap_value")
-        colors = ["#EF4444" if v > 0 else "#22C55E" for v in df_s["shap_value"]]
-        fig = go.Figure(go.Bar(
-            x=df_s["shap_value"],
-            y=df_s["driver"],
-            orientation="h",
-            marker_color=colors,
-            text=[f"{v:+.4f}" for v in df_s["shap_value"]],
-            textposition="outside",
-            textfont=dict(size=11, color="#0F172A"),
-            hovertemplate="<b>%{y}</b><br>SHAP: %{x:+.4f}<extra></extra>",
-        ))
-        fig.update_layout(
-            height=340, showlegend=False,
-            xaxis=dict(showgrid=False, tickfont=dict(size=11),
-                       title="SHAP value (red = increases risk, green = reduces risk)",
-                       zeroline=True, zerolinecolor="#CBD5E1", zerolinewidth=2),
-            yaxis=dict(showgrid=False, tickfont=dict(size=11)),
-            **CHART)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        _render_shap_cards(df)
         return
 
     # Account-list queries: horizontal bar of risk percentile by account

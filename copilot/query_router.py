@@ -498,7 +498,8 @@ QUERY_MAP = {
         "keywords": ["explain", "why is", "why high risk", "what makes", "risk drivers for",
                      "drivers for", "why is this account", "explain account"],
         "sql_template": """
-            SELECT feature_label AS driver, shap_value, feature_value AS value, driver_rank
+            SELECT feature_label AS driver, feature_name, shap_value,
+                   feature_value AS value, pop_avg, driver_rank
             FROM account_shap_drivers
             WHERE account_id = '{account_id}'
             ORDER BY driver_rank;

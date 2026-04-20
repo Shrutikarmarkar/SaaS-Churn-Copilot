@@ -162,6 +162,10 @@ def main():
     account_ids     = latest_df["account_id"].values
     snapshot_dates  = latest_df["snapshot_date"].values
 
+    # Population averages for context in the UI
+    pop_avg = {all_feature_names[j]: float(np.nanmean(X_dense[:, j]))
+               for j in range(len(all_feature_names))}
+
     for i in range(len(account_ids)):
         sv = shap_vals[i]
         top_idx = np.argsort(sv)[::-1][:5]        # top 5 positive drivers
@@ -175,6 +179,7 @@ def main():
                 "feature_label": FEATURE_LABELS.get(fname, fname.replace("_", " ").title()),
                 "shap_value":    round(float(sv[idx]), 6),
                 "feature_value": round(float(X_dense[i, idx]), 4),
+                "pop_avg":       round(pop_avg.get(fname, 0), 4),
             })
 
     shap_df = pd.DataFrame(records)
