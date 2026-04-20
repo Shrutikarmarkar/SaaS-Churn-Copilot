@@ -331,9 +331,10 @@ def render_chart(df: pd.DataFrame, query_name: str):
             fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",
             hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>"
         ))
+        ymax = df[num[0]].max() * 1.25
         fig.update_layout(height=380, showlegend=False,
                           xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                          yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
+                          yaxis=dict(showgrid=False, tickfont=dict(size=12), range=[0, ymax]),
                           **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
         return
@@ -364,7 +365,8 @@ def render_chart(df: pd.DataFrame, query_name: str):
         ))
         fig.update_layout(height=380, bargap=0.38, showlegend=False,
                           xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                          yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
+                          yaxis=dict(showgrid=False, tickfont=dict(size=12),
+                                     range=[0, df[num[0]].max()*1.3]),
                           **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
 
@@ -373,9 +375,14 @@ if st.session_state.output:
     import streamlit.components.v1 as components
     components.html("""
     <script>
-      window.parent.document.querySelector('section.main').scrollTo({top: 99999, behavior: 'smooth'});
+      setTimeout(function() {
+        var sel = '[data-testid="stAppViewContainer"]';
+        var el = window.parent.document.querySelector(sel);
+        if (el) { el.scrollTo({top: el.scrollHeight, behavior: 'smooth'}); }
+        else { window.parent.scrollTo({top: window.parent.document.body.scrollHeight, behavior: 'smooth'}); }
+      }, 200);
     </script>
-    """, height=0)
+    """, height=1)
     st.markdown('<div id="result-anchor"></div>', unsafe_allow_html=True)
     out = st.session_state.output
     if out["matched_query"] is None:

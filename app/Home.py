@@ -378,9 +378,10 @@ if D.get("ok"):
                 fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",
                 hovertemplate="<b>%{x}</b><br>%{y} high-risk<extra></extra>"
             ))
+            ymax = tdf["high_risk"].max() * 1.25
             fig.update_layout(height=320, showlegend=False,
                               xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                              yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
+                              yaxis=dict(showgrid=False, tickfont=dict(size=12), range=[0, ymax]),
                               **CHART_TALL)
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
@@ -434,7 +435,8 @@ if D.get("ok"):
             ))
             fig3.update_layout(height=300, bargap=0.4, showlegend=False,
                                xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                               yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12)),
+                               yaxis=dict(showgrid=False, tickfont=dict(size=12),
+                                          range=[0, rdf["high_risk"].max()*1.3]),
                                **CHART_TALL)
             st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
@@ -456,7 +458,7 @@ if D.get("ok"):
             ))
             fig4.update_layout(height=300, bargap=0.4, showlegend=False,
                                xaxis=dict(showgrid=False, tickfont=dict(size=12)),
-                               yaxis=dict(showgrid=True, gridcolor=GRID, tickfont=dict(size=12), range=[0,110]),
+                               yaxis=dict(showgrid=False, tickfont=dict(size=12), range=[0,115]),
                                **CHART_TALL)
             st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
