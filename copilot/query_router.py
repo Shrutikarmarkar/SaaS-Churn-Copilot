@@ -498,11 +498,15 @@ QUERY_MAP = {
         "keywords": ["explain", "why is", "why high risk", "what makes", "risk drivers for",
                      "drivers for", "why is this account", "explain account"],
         "sql_template": """
-            SELECT feature_label AS driver, feature_name, shap_value,
-                   feature_value AS value, pop_avg, driver_rank
-            FROM account_shap_drivers
-            WHERE account_id = '{account_id}'
-            ORDER BY driver_rank;
+            SELECT s.feature_label AS driver, s.feature_name, s.shap_value,
+                   s.feature_value AS value, s.pop_avg, s.driver_rank,
+                   c.risk_band, c.risk_bucket,
+                   ROUND(c.risk_percentile::numeric, 1)       AS risk_percentile,
+                   ROUND(c.churn_risk_calibrated::numeric, 4) AS churn_probability
+            FROM account_shap_drivers s
+            LEFT JOIN churn_scores_latest_ranked c ON s.account_id = c.account_id
+            WHERE s.account_id = '{account_id}'
+            ORDER BY s.driver_rank;
         """
     },
 

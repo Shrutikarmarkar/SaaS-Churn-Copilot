@@ -431,6 +431,21 @@ def _insight_sentence(fname: str, label: str, value: float, avg) -> str:
 def _render_shap_cards(df: pd.DataFrame):
     st.markdown("""
     <style>
+    .verdict-banner {
+        border-radius: 12px; padding: 1rem 1.4rem;
+        margin-bottom: 1.2rem; border-left: 5px solid;
+    }
+    .verdict-banner.high  { background:#FEF2F2; border-color:#DC2626; }
+    .verdict-banner.med   { background:#FFFBEB; border-color:#D97706; }
+    .verdict-banner.low   { background:#F0FDF4; border-color:#16A34A; }
+    .verdict-title {
+        font-size: 1.05rem; font-weight: 800; margin-bottom: 0.3rem;
+    }
+    .verdict-title.high { color: #B91C1C; }
+    .verdict-title.med  { color: #B45309; }
+    .verdict-title.low  { color: #15803D; }
+    .verdict-sub { font-size: 0.88rem; color: #475569; }
+
     .shap-card {
         background: #F8FAFC; border-radius: 14px;
         padding: 1rem 1.2rem; margin-bottom: 0.7rem;
@@ -446,14 +461,66 @@ def _render_shap_cards(df: pd.DataFrame):
         padding: 2px 8px; border-radius: 20px; margin-left: 8px;
         vertical-align: middle;
     }
-    .shap-badge.red  { background: #FEE2E2; color: #B91C1C; }
-    .shap-badge.grn  { background: #DCFCE7; color: #15803D; }
+    .shap-badge.red { background: #FEE2E2; color: #B91C1C; }
+    .shap-badge.grn { background: #DCFCE7; color: #15803D; }
+    .drivers-header { font-size: 0.92rem; font-weight: 700; color: #0F172A;
+                      margin-bottom: 0.6rem; }
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("**Top risk drivers — what's making this account high risk:**")
-    st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
+    # ── Risk verdict banner ───────────────────────────────────────────────────
+    first = df.iloc[0]
+    bucket      = str(first.get("risk_bucket", "")).strip()
+    band        = str(first.get("risk_band",   "")).strip()
+    percentile  = first.get("risk_percentile",  None)
+    churn_prob  = first.get("churn_probability", None)
 
+    has_score = bucket not in ("", "None", "nan") and percentile is not None
+    try:
+        pct_val = float(percentile)
+        prob_val = float(churn_prob)
+    except (TypeError, ValueError):
+        has_score = False
+
+    if has_score:
+        if bucket == "High":
+            cls, verdict = "high", "HIGH RISK"
+            sub = (f"Risk Percentile: <b>{pct_val:.1f}th</b> — this account is in the top "
+                   f"{100 - pct_val:.0f}% most at-risk accounts. "
+                   f"Estimated churn probability: <b>{prob_val:.1%}</b>. "
+                   f"The factors below are driving the elevated risk score.")
+        elif bucket == "Medium":
+            cls, verdict = "med", "MEDIUM RISK"
+            sub = (f"Risk Percentile: <b>{pct_val:.1f}th</b>. "
+                   f"This account shows some warning signs but is not yet in the high-risk zone. "
+                   f"The factors below are worth monitoring.")
+        else:
+            cls, verdict = "low", "LOW RISK"
+            sub = (f"Risk Percentile: <b>{pct_val:.1f}th</b>. "
+                   f"This account is healthy overall. "
+                   f"The factors below are what the model monitors — they are currently within normal range "
+                   f"and do not indicate imminent churn.")
+    else:
+        cls, verdict, sub = "med", "ACCOUNT FOUND", "Risk score not available for this account."
+
+    st.markdown(f"""
+    <div class="verdict-banner {cls}">
+        <div class="verdict-title {cls}">{verdict}</div>
+        <div class="verdict-sub">{sub}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Section header changes based on risk level ────────────────────────────
+    if has_score and bucket == "High":
+        header = "Key factors driving the elevated churn risk:"
+    elif has_score and bucket == "Medium":
+        header = "Factors to monitor for this account:"
+    else:
+        header = "Model factors — currently healthy for this account:"
+
+    st.markdown(f'<div class="drivers-header">{header}</div>', unsafe_allow_html=True)
+
+    # ── Driver cards ──────────────────────────────────────────────────────────
     for _, row in df.iterrows():
         fname  = str(row.get("feature_name", ""))
         label  = str(row["driver"])
@@ -461,14 +528,14 @@ def _render_shap_cards(df: pd.DataFrame):
         avg    = row.get("pop_avg", None)
         shap_v = float(row["shap_value"])
 
-        is_risk  = shap_v > 0
-        cls      = "" if is_risk else " green"
+        is_risk   = shap_v > 0
+        card_cls  = "" if is_risk else " green"
         badge_cls = "red" if is_risk else "grn"
         badge_txt = "↑ Increases risk" if is_risk else "↓ Reduces risk"
         sentence  = _insight_sentence(fname, label, value, avg)
 
         st.markdown(f"""
-        <div class="shap-card{cls}">
+        <div class="shap-card{card_cls}">
             <div class="shap-card-title">
                 {label}
                 <span class="shap-badge {badge_cls}">{badge_txt}</span>
