@@ -9,6 +9,7 @@ COPILOT_DIR = os.path.join(BASE_DIR, "copilot")
 if COPILOT_DIR not in sys.path:
     sys.path.append(COPILOT_DIR)
 from query_router import answer_direct, answer_question
+from llm_sql_router import answer_question_llm
 
 st.set_page_config(page_title="Ask Copilot", page_icon="🤖",
                    layout="wide", initial_sidebar_state="collapsed")
@@ -162,7 +163,7 @@ def run_direct(label, query_name, params={}):
 
 def run_text(q):
     st.session_state.active_label = q
-    st.session_state.output       = answer_question(q)
+    st.session_state.output       = answer_question_llm(q)
 
 # ── Questions data ─────────────────────────────────────────────────────────────
 CATEGORIES = {
@@ -470,24 +471,48 @@ def _render_shap_cards(df: pd.DataFrame):
 
     # ── Risk verdict banner ───────────────────────────────────────────────────
     first = df.iloc[0]
-    bucket      = str(first.get("risk_bucket", "")).strip()
-    band        = str(first.get("risk_band",   "")).strip()
-    percentile  = first.get("risk_percentile",  None)
-    churn_prob  = first.get("churn_probability", None)
+
+    # If risk columns are absent (old cached query_router), fetch them directly
+    if "risk_bucket" not in df.columns and "account_id" in df.columns:
+        try:
+            from query_db import run_query as _rq
+            _acc = str(first["account_id"]).strip()
+            _risk_df = _rq(f"""
+                SELECT risk_bucket, risk_band, risk_percentile, churn_risk_calibrated
+                FROM churn_scores_latest_ranked WHERE account_id = '{_acc}'
+            """)
+            if _risk_df is not None and not _risk_df.empty:
+                first = first.copy()
+                first["risk_bucket"]     = _risk_df.iloc[0]["risk_bucket"]
+                first["risk_band"]       = _risk_df.iloc[0]["risk_band"]
+                first["risk_percentile"] = _risk_df.iloc[0]["risk_percentile"]
+                first["churn_probability"] = _risk_df.iloc[0]["churn_risk_calibrated"]
+        except Exception:
+            pass
+
+    bucket     = str(first.get("risk_bucket", "")).strip()
+    band       = str(first.get("risk_band",   "")).strip()
+    percentile = first.get("risk_percentile",  None)
+    churn_prob = first.get("churn_probability", None)
 
     has_score = bucket not in ("", "None", "nan") and percentile is not None
     try:
         pct_val = float(percentile)
-        prob_val = float(churn_prob)
     except (TypeError, ValueError):
         has_score = False
+        pct_val   = 0.0
+
+    try:
+        prob_val = float(churn_prob) if churn_prob is not None else None
+    except (TypeError, ValueError):
+        prob_val = None
 
     if has_score:
         if bucket == "High":
             cls, verdict = "high", "HIGH RISK"
+            prob_str = f" Estimated churn probability: <b>{prob_val:.1%}</b>." if prob_val is not None else ""
             sub = (f"Risk Percentile: <b>{pct_val:.1f}th</b> — this account is in the top "
-                   f"{100 - pct_val:.0f}% most at-risk accounts. "
-                   f"Estimated churn probability: <b>{prob_val:.1%}</b>. "
+                   f"{100 - pct_val:.0f}% most at-risk accounts.{prob_str} "
                    f"The factors below are driving the elevated risk score.")
         elif bucket == "Medium":
             cls, verdict = "med", "MEDIUM RISK"
@@ -567,22 +592,76 @@ def render_chart(df: pd.DataFrame, query_name: str):
     # Account-list queries: horizontal bar of risk percentile by account
     if "account_id" in df.columns and "risk_percentile" in df.columns:
         plot_df = df.sort_values("risk_percentile", ascending=True).head(20)
-        fig = go.Figure(go.Bar(
-            x=plot_df["risk_percentile"],
-            y=plot_df["account_id"].astype(str),
-            orientation="h",
-            text=plot_df["risk_percentile"].round(1),
-            textposition="outside",
-            textfont=dict(size=11, color="#0F172A"),
-            marker=dict(color="#2563EB", line=dict(color="#FFFFFF", width=1)),
-            hovertemplate="<b>%{y}</b><br>Risk %ile: %{x:.1f}<extra></extra>"
-        ))
+        has_plan = "plan_type" in plot_df.columns
+        has_prob = "churn_probability" in plot_df.columns
+        has_contract = "contract_type" in plot_df.columns
+
+        PLAN_COLORS = {"Enterprise": "#1E3A8A", "Pro": "#3B82F6", "Basic": "#93C5FD"}
+
+        fig = go.Figure()
+
+        if has_plan:
+            y_order = plot_df["account_id"].astype(str).tolist()
+            for plan, color in PLAN_COLORS.items():
+                sub = plot_df[plot_df["plan_type"] == plan]
+                if sub.empty:
+                    continue
+                if has_prob:
+                    bar_text = [f"{r:.1f}  ({p:.1%})" for r, p in
+                                zip(sub["risk_percentile"], sub["churn_probability"])]
+                else:
+                    bar_text = sub["risk_percentile"].round(1).astype(str).tolist()
+                hover_extra = ""
+                if has_contract:
+                    hover_extra = "<br>Contract: %{customdata}"
+                    customdata = sub["contract_type"].tolist()
+                else:
+                    customdata = None
+                fig.add_trace(go.Bar(
+                    x=sub["risk_percentile"],
+                    y=sub["account_id"].astype(str),
+                    orientation="h",
+                    name=plan,
+                    text=bar_text,
+                    textposition="outside",
+                    textfont=dict(size=11, color="#0F172A"),
+                    marker=dict(color=color, line=dict(color="#FFFFFF", width=1)),
+                    customdata=customdata,
+                    hovertemplate=(
+                        f"<b>%{{y}}</b><br>Plan: {plan}{hover_extra}"
+                        f"<br>Risk Percentile: %{{x:.1f}}"
+                        + (f"<br>Churn Probability: %{{text}}" if not has_prob else "")
+                        + "<extra></extra>"
+                    )
+                ))
+        else:
+            if has_prob:
+                bar_text = [f"{r:.1f}  ({p:.1%})" for r, p in
+                            zip(plot_df["risk_percentile"], plot_df["churn_probability"])]
+            else:
+                bar_text = plot_df["risk_percentile"].round(1).astype(str).tolist()
+            fig.add_trace(go.Bar(
+                x=plot_df["risk_percentile"],
+                y=plot_df["account_id"].astype(str),
+                orientation="h",
+                text=bar_text,
+                textposition="outside",
+                textfont=dict(size=11, color="#0F172A"),
+                marker=dict(color="#2563EB", line=dict(color="#FFFFFF", width=1)),
+                hovertemplate="<b>%{y}</b><br>Risk %ile: %{x:.1f}<extra></extra>"
+            ))
+            y_order = plot_df["account_id"].astype(str).tolist()
+
         fig.update_layout(
-            height=max(300, len(plot_df) * 32),
-            showlegend=False,
+            height=max(300, len(plot_df) * 36),
+            showlegend=has_plan,
+            barmode="overlay",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                        xanchor="right", x=1, font=dict(size=11)),
             xaxis=dict(showgrid=False, tickfont=dict(size=11),
-                       title="Risk Percentile", range=[0, 115]),
-            yaxis=dict(showgrid=False, tickfont=dict(size=11)),
+                       title="Risk Percentile", range=[0, 125]),
+            yaxis=dict(showgrid=False, tickfont=dict(size=11),
+                       categoryorder="array", categoryarray=y_order),
             **CHART)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
         return
@@ -675,9 +754,17 @@ with r_col:
         if out["matched_query"] is None:
             st.error(out["message"])
         else:
+            is_llm = out.get("matched_query") == "llm_generated"
+            badge  = ' <span style="font-size:0.72rem;font-weight:700;background:#EFF6FF;color:#1D4ED8;padding:2px 9px;border-radius:20px;margin-left:8px;vertical-align:middle;">AI Generated</span>' if is_llm else ""
             st.markdown(
-                f'<div class="result-card"><div class="result-title">{st.session_state.active_label}</div></div>',
+                f'<div class="result-card"><div class="result-title">{st.session_state.active_label}{badge}</div></div>',
                 unsafe_allow_html=True)
+
+            # Show generated SQL for LLM results
+            if is_llm and out.get("sql"):
+                with st.expander("View generated SQL", expanded=False):
+                    st.code(out["sql"], language="sql")
+
             df = out["result"]
             if df is not None and not df.empty:
                 for col in df.select_dtypes(include="object").columns:
@@ -697,6 +784,10 @@ with r_col:
     else:
         st.markdown("""
         <div class="placeholder">
-            👈 &nbsp; Select a question from the panel to see the chart here
+            Select a preset question from the panel, or type any question above — the AI will write the SQL for you.<br><br>
+            <span style="font-size:0.85rem;color:#64748B;">
+            Try: "Which Enterprise accounts in EU haven't logged in for 30 days?"<br>
+            Or: "How many Pro accounts recovered from high risk last week?"
+            </span>
         </div>
         """, unsafe_allow_html=True)

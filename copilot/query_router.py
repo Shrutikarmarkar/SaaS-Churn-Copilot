@@ -498,7 +498,7 @@ QUERY_MAP = {
         "keywords": ["explain", "why is", "why high risk", "what makes", "risk drivers for",
                      "drivers for", "why is this account", "explain account"],
         "sql_template": """
-            SELECT s.feature_label AS driver, s.feature_name, s.shap_value,
+            SELECT s.account_id, s.feature_label AS driver, s.feature_name, s.shap_value,
                    s.feature_value AS value, s.pop_avg, s.driver_rank,
                    c.risk_band, c.risk_bucket,
                    ROUND(c.risk_percentile::numeric, 1)       AS risk_percentile,
