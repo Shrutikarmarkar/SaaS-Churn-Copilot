@@ -703,9 +703,14 @@ def render_chart(df: pd.DataFrame, query_name: str):
         return
 
     # Grouped bar: 2 categorical columns (e.g. plan × region, plan × contract)
-    if len(text) >= 2 and num:
-        group_col = text[0]   # x-axis  (e.g. plan_type)
-        color_col = text[1]   # grouping (e.g. region / contract_type)
+    # Exclude account_id and date-like columns — they are identifiers, not grouping dimensions
+    _group_candidates = [c for c in text
+                         if c != "account_id"
+                         and "date" not in c.lower()
+                         and "day" not in c.lower()]
+    if len(_group_candidates) >= 2 and num:
+        group_col = _group_candidates[0]
+        color_col = _group_candidates[1]
         BLUES = ["#1E3A8A", "#2563EB", "#60A5FA", "#93C5FD", "#BFDBFE"]
         cats  = list(df[color_col].unique())
         cmap  = {c: BLUES[i % len(BLUES)] for i, c in enumerate(cats)}
@@ -733,8 +738,9 @@ def render_chart(df: pd.DataFrame, query_name: str):
         return
 
     if text and num:
+        x_col = next((c for c in text if c != "account_id" and "date" not in c.lower()), text[0])
         fig = go.Figure(go.Bar(
-            x=df[text[0]], y=df[num[0]],
+            x=df[x_col], y=df[num[0]],
             text=df[num[0]], textposition="outside",
             textfont=dict(size=12, color="#0F172A"),
             marker=dict(color=["#2563EB"] * len(df), line=dict(color="#FFFFFF", width=1)),
