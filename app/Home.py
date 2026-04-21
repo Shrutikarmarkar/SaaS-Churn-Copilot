@@ -275,8 +275,24 @@ def load_data():
                   WHERE run_date=(SELECT d FROM pv) AND risk_bucket='High')
             ORDER BY h.risk_percentile DESC;
         """)
+        revenue = run_query("""
+            SELECT ROUND(SUM(f.revenue)::numeric, 0) AS revenue_at_risk
+            FROM churn_scores_latest_ranked c
+            JOIN fact_usage_daily_account f ON c.account_id = f.account_id
+            WHERE c.risk_bucket = 'High';
+        """)
+        top5 = run_query("""
+            SELECT c.account_id, d.plan_type, d.region, d.contract_type,
+                   ROUND(c.risk_percentile::numeric, 1) AS risk_percentile,
+                   ROUND(c.churn_risk_calibrated::numeric, 4) AS churn_probability,
+                   c.risk_band
+            FROM churn_scores_latest_ranked c
+            JOIN dim_account d ON c.account_id = d.account_id
+            ORDER BY c.risk_percentile DESC LIMIT 5;
+        """)
         return dict(ok=True, wow=wow, trend=trend, buckets=buckets,
-                    region=region, plan=plan, new_accts=new_accts)
+                    region=region, plan=plan, new_accts=new_accts,
+                    revenue=revenue, top5=top5)
     except Exception as e:
         return dict(ok=False, error=str(e))
 
@@ -319,6 +335,34 @@ with c2:
     st.markdown("<p style='padding-top:0.65rem;color:#64748B;font-size:0.84rem'>Ask any question about your churn data in plain English</p>",
                 unsafe_allow_html=True)
 
+# ── About ─────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="
+    background:#F8FAFC; border:1px solid #E2E8F0; border-radius:16px;
+    padding:1.4rem 1.8rem; margin:1.6rem 0 0.4rem;
+    display:flex; gap:2.5rem; flex-wrap:wrap;
+">
+  <div style="flex:1; min-width:220px">
+    <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94A3B8;margin-bottom:0.4rem">What this is</div>
+    <div style="font-size:0.88rem;color:#334155;line-height:1.65">
+      A weekly churn intelligence platform for a single B2B SaaS company. The ML model scores every account on 30-day churn risk using 18 usage and engagement features, recalibrated each week.
+    </div>
+  </div>
+  <div style="flex:1; min-width:220px">
+    <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94A3B8;margin-bottom:0.4rem">How risk is defined</div>
+    <div style="font-size:0.88rem;color:#334155;line-height:1.65">
+      <b>High</b> = top 5% of accounts by churn probability. <b>Medium</b> = top 25%. Risk percentile ranks every account 0–100 relative to the full portfolio.
+    </div>
+  </div>
+  <div style="flex:1; min-width:220px">
+    <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94A3B8;margin-bottom:0.4rem">Tech stack</div>
+    <div style="font-size:0.88rem;color:#334155;line-height:1.65">
+      XGBoost · Platt calibration · SHAP explainability · Neon Postgres · Claude (text-to-SQL) · Streamlit
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 # ── Metric Cards ──────────────────────────────────────────────────────────────
 if not D.get("ok"):
     st.error(f"⚠️ Database error: {D.get('error', 'Unknown')}")
@@ -327,6 +371,15 @@ if D.get("ok") and not D["wow"].empty:
     high_now  = int(r["high_now"]);  high_prev = int(r["high_prev"])
     change    = int(r["change"]);    total      = int(r["total"])
     new_n     = len(D["new_accts"]); pct        = round(high_now/total*100,1) if total else 0
+
+    rev_raw = D["revenue"].iloc[0]["revenue_at_risk"] if D.get("revenue") is not None and not D["revenue"].empty else 0
+    rev_val = int(rev_raw) if rev_raw else 0
+    if rev_val >= 1_000_000:
+        rev_str = f"${rev_val/1_000_000:.1f}M"
+    elif rev_val >= 1_000:
+        rev_str = f"${rev_val/1_000:.0f}K"
+    else:
+        rev_str = f"${rev_val:,}"
 
     dc = "mcard-delta-up" if change>0 else "mcard-delta-down" if change<0 else "mcard-delta-flat"
     di = "▲" if change>0 else "▼" if change<0 else "●"
@@ -349,9 +402,9 @@ if D.get("ok") and not D["wow"].empty:
         <div class="mcard-delta-{'up' if new_n>0 else 'flat'}">{"▲ needs attention" if new_n>0 else "● no new accounts"}</div>
       </div>
       <div class="mcard mcard-sage" style="animation:fadeUp .5s ease .35s both">
-        <div class="mcard-label">Last Week</div>
-        <div class="mcard-value" data-count="{high_prev}">{high_prev}</div>
-        <div class="mcard-delta-flat">high-risk accounts</div>
+        <div class="mcard-label">Revenue at Risk</div>
+        <div class="mcard-value">{rev_str}</div>
+        <div class="mcard-delta-flat">from high-risk accounts</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -464,14 +517,36 @@ if D.get("ok"):
             st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
+# ── Top 5 high-risk accounts preview ─────────────────────────────────────────
+if D.get("ok") and D.get("top5") is not None and not D["top5"].empty:
+    st.markdown('<div class="sec-hdr reveal">Top High-Risk Accounts</div>', unsafe_allow_html=True)
+    t5 = D["top5"].copy()
+    t5.columns = [c.replace("_", " ").title() for c in t5.columns]
+    st.dataframe(t5, use_container_width=True, hide_index=True,
+                 column_config={
+                     "Risk Percentile":    st.column_config.NumberColumn("Risk %ile",   format="%.1f"),
+                     "Churn Probability":  st.column_config.NumberColumn("Churn Prob",  format="%.4f"),
+                 })
+    c_btn, _ = st.columns([2, 8])
+    with c_btn:
+        if st.button("See all high-risk accounts →", use_container_width=True):
+            st.switch_page("pages/02_Ask_Copilot.py")
+
 # ── Newly at-risk ─────────────────────────────────────────────────────────────
-st.markdown('<div class="sec-hdr reveal">⚡ Newly High-Risk This Week</div>', unsafe_allow_html=True)
+st.markdown('<div class="sec-hdr reveal">Newly High-Risk This Week</div>', unsafe_allow_html=True)
 if D.get("ok"):
     ndf = D["new_accts"]
     if ndf.empty:
-        st.markdown('<div class="alert-ok reveal">✅ No accounts newly entered high-risk this week.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="alert-ok reveal">No accounts newly entered high-risk this week.</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="alert-warm reveal">⚠️ {len(ndf)} account(s) newly flagged high-risk this week — use Ask Copilot to drill in.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="alert-warm reveal">{len(ndf)} account(s) newly flagged high-risk this week — investigate before they churn.</div>', unsafe_allow_html=True)
+        ndf_display = ndf.copy()
+        ndf_display.columns = [c.replace("_", " ").title() for c in ndf_display.columns]
+        st.dataframe(ndf_display, use_container_width=True, hide_index=True,
+                     column_config={
+                         "Risk Percentile":   st.column_config.NumberColumn("Risk %ile",  format="%.1f"),
+                         "Churn Probability": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                     })
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("<div style='margin-top:2.5rem'>", unsafe_allow_html=True)
