@@ -526,13 +526,6 @@ if D.get("ok"):
         st.markdown('<div class="alert-ok reveal">No accounts newly entered high-risk this week.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="alert-warm reveal">{len(ndf)} account(s) newly flagged high-risk this week — investigate before they churn.</div>', unsafe_allow_html=True)
-        ndf_display = ndf.copy()
-        ndf_display.columns = [c.replace("_", " ").title() for c in ndf_display.columns]
-        st.dataframe(ndf_display, use_container_width=True, hide_index=True,
-                     column_config={
-                         "Risk Percentile":   st.column_config.NumberColumn("Risk %ile",  format="%.1f"),
-                         "Churn Probability": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                     })
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("<div style='margin-top:2.5rem'>", unsafe_allow_html=True)
