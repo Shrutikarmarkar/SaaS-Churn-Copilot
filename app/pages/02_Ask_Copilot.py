@@ -570,6 +570,63 @@ def _render_shap_cards(df: pd.DataFrame):
         """, unsafe_allow_html=True)
 
 
+# ── Account table with per-row Explain buttons ───────────────────────────────
+def render_account_table_with_explain(df: pd.DataFrame):
+    st.markdown("""
+    <style>
+    .acct-hdr {
+        font-size: 0.72rem; font-weight: 700; color: #94A3B8;
+        text-transform: uppercase; letter-spacing: 0.09em;
+    }
+    .acct-cell { font-size: 0.88rem; color: #0F172A; padding: 0.15rem 0; }
+    .acct-id   { font-weight: 600; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    has_plan     = "plan_type"     in df.columns
+    has_region   = "region"        in df.columns
+    has_contract = "contract_type" in df.columns
+    has_prob     = "churn_probability" in df.columns
+    has_pct      = "risk_percentile"   in df.columns
+
+    # Dynamic column widths
+    widths = [2]
+    labels = ["Account"]
+    fields = ["account_id"]
+    if has_plan:     widths.append(1.4); labels.append("Plan");     fields.append("plan_type")
+    if has_region:   widths.append(1.2); labels.append("Region");   fields.append("region")
+    if has_contract: widths.append(1.4); labels.append("Contract"); fields.append("contract_type")
+    if has_pct:      widths.append(1.2); labels.append("Risk %ile"); fields.append("risk_percentile")
+    if has_prob:     widths.append(1.2); labels.append("Churn Prob"); fields.append("churn_probability")
+    widths.append(1.2); labels.append(""); fields.append(None)  # button col
+
+    # Header row
+    hdr_cols = st.columns(widths)
+    for col, lbl in zip(hdr_cols, labels):
+        col.markdown(f'<div class="acct-hdr">{lbl}</div>', unsafe_allow_html=True)
+    st.markdown("<hr style='margin:0.3rem 0 0.5rem;border:none;border-top:2px solid #F1F5F9'>",
+                unsafe_allow_html=True)
+
+    # Data rows
+    for i, row in df.head(25).iterrows():
+        row_cols = st.columns(widths)
+        for col, field in zip(row_cols[:-1], fields):
+            val = row.get(field, "—")
+            if field == "account_id":
+                col.markdown(f'<div class="acct-cell acct-id">{val}</div>', unsafe_allow_html=True)
+            elif field == "risk_percentile":
+                col.markdown(f'<div class="acct-cell">{float(val):.1f}</div>', unsafe_allow_html=True)
+            elif field == "churn_probability":
+                col.markdown(f'<div class="acct-cell">{float(val):.2%}</div>', unsafe_allow_html=True)
+            else:
+                col.markdown(f'<div class="acct-cell">{val}</div>', unsafe_allow_html=True)
+
+        acc_id = str(row["account_id"])
+        if row_cols[-1].button("Explain →", key=f"expl_{acc_id}_{i}", use_container_width=True):
+            run_direct(f"Why is {acc_id} at risk?", "explain_account", {"account_id": acc_id})
+            st.rerun()
+
+
 # ── Chart renderer ────────────────────────────────────────────────────────────
 CHART = dict(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
              font=dict(family="DM Sans", color="#0F172A"),
@@ -807,12 +864,15 @@ with r_col:
             if df is not None and not df.empty:
                 render_chart(df, qn)
                 if qn != "explain_account":
-                    st.dataframe(df, use_container_width=True, hide_index=True,
-                                 column_config={
-                                     "risk_percentile":       st.column_config.NumberColumn("Risk %ile",  format="%.1f"),
-                                     "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                                     "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
-                                 })
+                    if "account_id" in df.columns:
+                        render_account_table_with_explain(df)
+                    else:
+                        st.dataframe(df, use_container_width=True, hide_index=True,
+                                     column_config={
+                                         "risk_percentile":       st.column_config.NumberColumn("Risk %ile",  format="%.1f"),
+                                         "churn_probability":     st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                                         "churn_risk_calibrated": st.column_config.NumberColumn("Churn Prob", format="%.4f"),
+                                     })
             else:
                 st.info("No results returned for this query.")
     else:
