@@ -517,20 +517,6 @@ if D.get("ok"):
             st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar":False})
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ── Top 5 high-risk accounts preview ─────────────────────────────────────────
-if D.get("ok") and D.get("top5") is not None and not D["top5"].empty:
-    st.markdown('<div class="sec-hdr reveal">Top High-Risk Accounts</div>', unsafe_allow_html=True)
-    t5 = D["top5"].copy()
-    t5.columns = [c.replace("_", " ").title() for c in t5.columns]
-    st.dataframe(t5, use_container_width=True, hide_index=True,
-                 column_config={
-                     "Risk Percentile":    st.column_config.NumberColumn("Risk %ile",   format="%.1f"),
-                     "Churn Probability":  st.column_config.NumberColumn("Churn Prob",  format="%.4f"),
-                 })
-    c_btn, _ = st.columns([2, 8])
-    with c_btn:
-        if st.button("See all high-risk accounts →", use_container_width=True):
-            st.switch_page("pages/02_Ask_Copilot.py")
 
 # ── Newly at-risk ─────────────────────────────────────────────────────────────
 st.markdown('<div class="sec-hdr reveal">Newly High-Risk This Week</div>', unsafe_allow_html=True)
