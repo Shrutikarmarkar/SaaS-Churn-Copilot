@@ -589,7 +589,35 @@ def render_chart(df: pd.DataFrame, query_name: str):
         _render_shap_cards(df)
         return
 
-    # Account-list queries: horizontal bar of risk percentile by account
+    # Account-list queries: any result with account_id gets one bar per account
+    if "account_id" in df.columns and num:
+        if "risk_percentile" not in df.columns:
+            # LLM-generated account result — pick first numeric as the metric
+            metric_col = num[0]
+            plot_df = df.sort_values(metric_col, ascending=True).head(25)
+            hover_parts = [f"<b>%{{y}}</b><br>{metric_col}: %{{x}}"]
+            for extra in [c for c in df.columns if c not in ("account_id", metric_col)]:
+                hover_parts.append(f"{extra}: {plot_df[extra].iloc[0] if len(plot_df) else ''}")
+            fig = go.Figure(go.Bar(
+                x=plot_df[metric_col],
+                y=plot_df["account_id"].astype(str),
+                orientation="h",
+                text=plot_df[metric_col].round(2),
+                textposition="outside",
+                textfont=dict(size=11, color="#0F172A"),
+                marker=dict(color="#2563EB", line=dict(color="#FFFFFF", width=1)),
+                hovertemplate="<b>%{y}</b><br>" + metric_col + ": %{x}<extra></extra>"
+            ))
+            fig.update_layout(
+                height=max(300, len(plot_df) * 36),
+                showlegend=False,
+                xaxis=dict(showgrid=False, tickfont=dict(size=11),
+                           title=metric_col.replace("_", " ").title(), range=[0, plot_df[metric_col].max() * 1.25]),
+                yaxis=dict(showgrid=False, tickfont=dict(size=11)),
+                **CHART)
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            return
+
     if "account_id" in df.columns and "risk_percentile" in df.columns:
         plot_df = df.sort_values("risk_percentile", ascending=True).head(20)
         has_plan = "plan_type" in plot_df.columns
