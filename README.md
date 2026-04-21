@@ -93,6 +93,4 @@ app/
 
 ---
 
-## Dataset
-
-Built on the [KKBOX Churn Prediction dataset](https://www.kaggle.com/c/kkbox-churn-prediction-challenge) from Kaggle, restructured as a B2B SaaS abstraction layer — accounts, seats, contract types, regions, and weekly usage metrics — to simulate a realistic enterprise SaaS environment.
+## StreamLit Cloud link: https://saas-churn-copilot-4zercogks3sgf8xvdwzvbc.streamlit.app/
