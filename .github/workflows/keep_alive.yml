@@ -1,0 +1,16 @@
+name: Keep Streamlit App Alive
+
+on:
+  schedule:
+    # Runs every 5 minutes — keeps the free-tier app from sleeping
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # allow manual trigger from GitHub Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit app
+        run: |
+          curl -s -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
+            https://saas-churn-copilot-4zercogks3sgf8xvdwzvbc.streamlit.app/
